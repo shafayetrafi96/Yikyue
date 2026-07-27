@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YIK YUE (H.K.) COMMERCIAL LIMITED - Movement Entry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { brand: '#0A4038', 'brand-dark': '#072e27', 'brand-light': '#e0efed' } } }
+        }
+    </script>
+    <style>
+        body { background-color: #f4f6f9; }
+        ::selection { background-color: #0A4038; color: white; }
+        .modal-content-scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .inline-input { padding: 0.25rem 0.5rem; border: 1px solid #cbd5e0; border-radius: 0.25rem; width: 100%; font-size: 0.875rem; line-height: 1.25rem; }
+        .inline-input:focus { outline: none; border-color: #0A4038; box-shadow: 0 0 0 1px #0A4038; }
+        .inline-input:disabled { background-color: #f7fafc; color: #a0aec0; cursor: not-allowed; border-color: #e2e8f0; }
+        .suggestion-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e0; border-top: none; max-height: 150px; overflow-y: auto; z-index: 50; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 0 0 0.25rem 0.25rem; }
+        .suggestion-item { padding: 8px 12px; cursor: pointer; font-size: 0.875rem; color: #4a5568; }
+        .suggestion-item:hover, .suggestion-item:active { background-color: #e0efed; color: #0A4038; }
+        .suggestion-header { padding: 4px 12px 2px; font-size: 0.68rem; font-weight: 700; color: #0A4038; background: #e0efed; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #b2d8d0; pointer-events: none; cursor: default; }
+        .suggestion-divider { border: none; border-top: 1px dashed #e2e8f0; margin: 0; }
+        .mapping-col { min-width: 110px; }
+        .mapping-col select { font-size: 0.7rem; }
+        #pasteArea { resize: vertical; }
+        .paste-preview-table th, .paste-preview-table td { white-space: nowrap; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 14px 28px; border-radius: 12px; color: white; font-weight: 600; font-size: 14px; z-index: 9999; opacity: 0; transition: opacity 0.3s; box-shadow: 0 8px 30px rgba(0,0,0,0.2); pointer-events: none; }
+        .toast.show { opacity: 1; }
+        .toast-success { background: #059669; }
+        .toast-error { background: #dc2626; }
+        .toast-info { background: #2563eb; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pdf-progress { position: fixed; top: 20px; right: 20px; background: white; border: 2px solid #0A4038; border-radius: 12px; padding: 16px 24px; z-index: 9998; box-shadow: 0 8px 30px rgba(0,0,0,0.15); min-width: 280px; }
+
+        /* BROWSER AUTOFILL BLOCK CSS */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 30px white inset !important;
+            -webkit-text-fill-color: #2d3748 !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+        @keyframes rowFlash{0%{background-color:#fef9c3;}100%{background-color:transparent;}}
+        .row-flash{animation:rowFlash 10s ease-out forwards;}
+    </style>
+</head>
+<body class="text-gray-800 font-sans">
+    <div id="toastContainer" class="toast"></div>
+    <div id="pdfProgress" class="pdf-progress hidden">
+        <p class="font-bold text-brand mb-1"><i class="fas fa-file-pdf mr-2"></i>PDF Import Progress</p>
+        <p id="pdfProgressText" class="text-sm text-gray-600">Processing...</p>
+        <div class="w-full bg-gray-200 rounded-full h-2 mt-2"><div id="pdfProgressBar" class="bg-brand h-2 rounded-full transition-all" style="width:0%"></div></div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-80 z-[101]">
+            <h3 class="text-lg font-bold mb-4 text-brand-dark">Admin Login</h3>
+            <input type="password" id="adminPassInput" name="field_pw_0q3" autocomplete="off" data-lpignore="true" data-1p-ignore class="w-full border border-gray-300 rounded p-2 mb-2 focus:ring-brand focus:border-brand" placeholder="Enter Password" onkeypress="handleModalEnter(event)">
+            <p id="adminError" class="text-red-500 text-sm mb-4 hidden">Incorrect Password!</p>
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeAdminModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium">Cancel</button>
+                <button onclick="submitAdminLogin()" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark font-medium">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="fixed inset-0 hidden z-[100]" onclick="closeDeleteModal()">
+        <div id="deleteBox" class="absolute bg-white p-6 rounded-lg shadow-2xl w-80 border border-red-200 z-[101]" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold mb-4 text-red-600">Confirm Deletion</h3>
+            <p id="deleteMessage" class="mb-6">Are you sure you want to delete this entry?</p>
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium">Cancel</button>
+                <button onclick="confirmDelete()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suggestions Manager Modal -->
+    <div id="suggestionsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col z-[101]">
+            <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg shrink-0">
+                <h3 class="text-lg font-bold"><i class="fas fa-list-alt mr-2"></i>Manage Suggestions</h3>
+                <button onclick="closeSuggestionManager()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex border-b bg-gray-50 px-4 pt-2 overflow-x-auto shrink-0" id="suggestionTabs">
+                <button onclick="switchSuggestionTab('nameIdPairs')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-brand text-brand" data-tab="nameIdPairs">Name & ID Pairs</button>
+                <button onclick="switchSuggestionTab('destinations')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-brand" data-tab="destinations">Destinations</button>
+                <button onclick="switchSuggestionTab('purposes')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-brand" data-tab="purposes">Purposes</button>
+                <button onclick="switchSuggestionTab('froms')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-brand" data-tab="froms">Froms</button>
+            </div>
+            <div class="p-6 modal-content-scroll flex-1 bg-white">
+                <div class="flex mb-6 gap-2">
+                    <input type="text" id="newSuggestionInput" name="field_sg_2t4" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="flex-1 border border-gray-300 rounded p-2 focus:ring-brand focus:border-brand" placeholder="Type new suggestion to add... (For Pairs: Name (ID) or Name (ID) (Dept))" onkeypress="if(event.key==='Enter') addNewSuggestion()">
+                    <button onclick="addNewSuggestion()" class="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark font-medium transition shadow-sm whitespace-nowrap">Add</button>
+                    <button onclick="clearAllSuggestions()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 font-medium transition shadow-sm whitespace-nowrap"><i class="fas fa-trash-alt mr-1"></i> Clear All</button>
+                </div>
+                <div id="suggestionsList" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paste Import Modal -->
+    <div id="pasteImportModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col z-[101]">
+            <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg shrink-0">
+                <h3 class="text-lg font-bold"><i class="fas fa-paste mr-2"></i>Paste &amp; Import Data</h3>
+                <button onclick="closePasteImport()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="px-5 pt-4 pb-1 shrink-0">
+                <div class="bg-brand-light border border-brand rounded-lg p-3 text-sm text-brand-dark">
+                    <p class="font-semibold mb-1"><i class="fas fa-info-circle mr-1"></i> How to use:</p>
+                    <ol class="list-decimal list-inside space-y-0.5 text-xs opacity-90">
+                        <li>Copy rows from <strong>Excel, Google Sheets, or any text</strong> (tab or comma separated)</li>
+                        <li>Paste into the box below and click <strong>"Parse &amp; Preview"</strong></li>
+                        <li>Adjust column mapping if auto-detection is incorrect</li>
+                        <li>Verify the preview, then click <strong>"Import Now"</strong></li>
+                    </ol>
+                </div>
+            </div>
+            <div class="px-5 py-3 shrink-0">
+                <textarea id="pasteArea" autocomplete="off" class="w-full border-2 border-dashed border-gray-300 rounded-lg p-3 font-mono text-sm h-36 focus:border-brand focus:ring-1 focus:ring-brand transition" placeholder="Paste your data here...&#10;&#10;Expected column order: Date | Name | ID No | Destination | Purpose | From | Exiting Time | Entering Time&#10;&#10;Example (tab-separated from Excel):&#10;01/01/2025  Anwarul Islam   03-3020 Hams Garments   Production      Office  09:00 AM        05:00 PM"></textarea>
+                <div class="flex gap-2 mt-2 items-center flex-wrap">
+                    <button onclick="parsePastedData()" class="bg-brand text-white px-5 py-2 rounded-lg hover:bg-brand-dark font-semibold transition shadow-sm"><i class="fas fa-search mr-1"></i> Parse &amp; Preview</button>
+                    <button onclick="clearPasteArea()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium transition">Clear</button>
+                    <span id="parseStatus" class="text-xs text-gray-500 ml-2"></span>
+                </div>
+            </div>
+            <div id="columnMappingSection" class="px-5 pb-2 hidden shrink-0">
+                <div class="flex items-center gap-2 mb-2">
+                    <h4 class="text-sm font-bold text-gray-700">Column Mapping</h4>
+                    <span class="text-xs text-gray-400">(adjust if auto-detection is incorrect)</span>
+                </div>
+                <div id="columnMapping" class="flex gap-2 overflow-x-auto pb-2"></div>
+            </div>
+            <div id="previewSection" class="px-5 pb-5 flex-1 overflow-auto hidden">
+                <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+                    <h4 class="text-sm font-bold text-gray-700">Preview: <span id="previewCount" class="text-brand">0</span> entries detected</h4>
+                    <div class="flex gap-3 items-center">
+                        <span id="duplicateInfo" class="text-xs text-orange-600 hidden"><i class="fas fa-exclamation-triangle mr-1"></i><span id="duplicateCount">0</span> duplicates will be skipped</span>
+                        <button id="importBtn" onclick="importPastedData()" class="bg-green-600 text-white px-6 py-2.5 rounded-lg hover:bg-green-700 font-bold transition shadow-sm text-base"><i class="fas fa-file-import mr-2"></i>Import Now</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto border rounded-lg">
+                    <table class="min-w-full text-sm paste-preview-table"><thead id="previewHead" class="bg-gray-100 sticky top-0 z-10"></thead><tbody id="previewBody"></tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-4 pb-12">
+        <div class="bg-brand text-white p-4 rounded-t-lg flex justify-between items-center shadow-md">
+            <div>
+                <h1 id="headerCompanyName" class="text-xl font-bold tracking-wide">YIK YUE (H.K.) COMMERCIAL LIMITED</h1>
+                <p id="headerCompanyAddress" class="text-sm opacity-90">2/F, Plaza 33, Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh</p>
+                <p class="text-xs opacity-60 mt-0.5"><i class="fas fa-microchip mr-1"></i>Device: <span id="deviceIdShort"></span></p>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+            <button id="nameAddressBtn" onclick="openNameAddressModal()" class="hidden bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-100 transition text-sm shadow"><i class="fas fa-building mr-2"></i>Name &amp; Address</button>
+            <button id="serverBtn" onclick="openServerModal()" class="hidden bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-100 transition text-sm shadow"><i class="fas fa-server mr-2"></i>Server</button>
+            <button id="adminBtn" onclick="checkAdmin()" class="bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-200 transition shadow-sm"><i class="fas fa-user-lock mr-2"></i>Admin</button>
+        </div>
+        </div>
+
+        <div class="bg-white p-6 shadow-md mb-6 border border-t-0 border-gray-200 rounded-b-lg">
+            <h2 class="text-lg font-semibold mb-4 border-b pb-2 text-brand-dark" id="formHeading">New Movement Entry</h2>
+            <form id="movementForm" autocomplete="off" data-lpignore="true" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div><div class="flex items-center justify-between mb-1"><label id="entryDateLabel" class="block text-sm font-medium text-gray-700">Date</label><label class="flex items-center gap-1.5 cursor-pointer select-none"><input type="checkbox" id="longTripCheck" onchange="toggleLongTrip(this)" class="w-3.5 h-3.5 accent-brand cursor-pointer"><span class="text-xs font-semibold text-brand-dark">Long Trip</span></label></div><input type="text" id="entryDate" name="field_dt_9x2" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand focus:border-brand transition" placeholder="DD/MM/YYYY" required></div>
+                <div class="relative"><label class="block text-sm font-medium text-gray-700">Name</label><input type="text" id="entryName" name="field_nm_4k7" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" data-1p-ignore data-bwignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand focus:border-brand" placeholder="Type name..." required><div id="dropdown-entryName" class="suggestion-dropdown hidden"></div><input type="hidden" id="entryID" name="field_hid_3m1" autocomplete="off" required></div>
+                <div class="relative"><label class="block text-sm font-medium text-gray-700">ID No.</label><input type="text" id="entryIDDisplay" name="field_id_8p5" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand focus:border-brand" placeholder="Auto-fills/Type..." required><div id="dropdown-entryIDDisplay" class="suggestion-dropdown hidden"></div></div>
+                <div class="relative"><label class="block text-sm font-medium text-gray-700">Destination</label><input type="text" id="entryDest" name="field_ds_2w9" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand focus:border-brand" placeholder="Type destination..." required><div id="dropdown-entryDest" class="suggestion-dropdown hidden"></div></div>
+                <div class="relative md:col-span-2"><label class="block text-sm font-medium text-gray-700">Purpose</label><input type="text" id="entryPurpose" name="field_pp_6v3" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand focus:border-brand" placeholder="Type purpose..." required><div id="dropdown-entryPurpose" class="suggestion-dropdown hidden"></div></div>
+                <div class="relative"><label class="block text-sm font-medium text-gray-700">From</label><input type="text" id="entryFrom" name="field_fr_1b4" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand focus:border-brand" placeholder="Office/Home (optional)"><div id="dropdown-entryFrom" class="suggestion-dropdown hidden"></div></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="block text-sm font-medium text-gray-700">Exiting</label><input type="text" id="entryOutTime" name="field_ot_7j6" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly'); handleTimeFocus(this)" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand focus:border-brand" placeholder="HH:MM AM" onkeydown="handleTimeKeydown(event, this, false)"></div>
+                    <div><label class="block text-sm font-medium text-gray-700">Entering</label><input type="text" id="entryInTime" name="field_it_5n8" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly'); handleTimeFocus(this)" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-brand focus:border-brand" placeholder="HH:MM AM" onkeydown="handleTimeKeydown(event, this, true)"></div>
+                </div>
+                <div class="flex items-end space-x-2 md:col-span-4">
+                    <button type="submit" id="formSubmitBtn" class="bg-brand text-white px-6 py-2 rounded font-bold hover:bg-brand-dark transition shadow">Submit</button>
+                    <button type="button" id="formCancelBtn" onclick="cancelEditMode()" class="hidden bg-orange-500 text-white px-6 py-2 rounded font-bold hover:bg-orange-600 transition shadow"><i class="fas fa-times mr-1"></i>Cancel Edit</button>
+                    <button type="button" id="formClearBtn" onclick="clearForm()" class="bg-gray-300 text-gray-700 px-6 py-2 rounded font-bold hover:bg-gray-400 transition shadow">Clear</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white p-4 shadow-md rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+            <div class="flex space-x-8">
+                <div class="text-center border-r pr-8"><p class="text-gray-500 text-xs font-bold uppercase">Total</p><p id="totalCount" class="text-3xl font-bold text-brand">0</p></div>
+                <div class="text-center"><p class="text-gray-500 text-xs font-bold uppercase">Today</p><p id="todayCount" class="text-3xl font-bold text-green-600">0</p></div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                <select id="monthFilter" class="border border-gray-300 rounded p-2 focus:ring-brand focus:border-brand"><option value="all">All Months</option></select>
+                <input type="file" id="pdfUpload" accept="application/pdf" multiple class="hidden" onchange="handlePdfUpload(event)">
+                <button id="uploadPdfBtn" onclick="document.getElementById('pdfUpload').click()" class="hidden bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition shadow text-sm" title="Upload PDF(s) - Bulk supported"><i class="fas fa-file-upload mr-1"></i> Upload PDF</button>
+                <button id="pasteImportBtn" onclick="openPasteImport()" class="hidden bg-amber-600 text-white px-3 py-2 rounded hover:bg-amber-700 transition shadow text-sm" title="Paste & Import Data"><i class="fas fa-paste mr-1"></i> Paste Import</button>
+                <button id="downloadPdfBtn" onclick="generatePDF()" class="hidden bg-brand text-white px-3 py-2 rounded hover:bg-brand-dark transition shadow text-sm" title="Download PDF"><i class="fas fa-file-download mr-1"></i> Download</button>
+                <button id="deleteSelectedBtn" onclick="promptBulkDelete(event)" class="hidden bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition shadow text-sm" title="Delete Marked"><i class="fas fa-trash-alt mr-1"></i> Delete Marked</button>
+                <button id="manageSuggestionsBtn" onclick="openSuggestionManager()" class="hidden bg-indigo-600 text-white px-3 py-2 rounded hover:bg-indigo-700 transition shadow text-sm" title="Manage Suggestions"><i class="fas fa-list-alt mr-1"></i> Manage</button>
+                <div class="relative w-full md:w-64"><input type="text" id="searchInput" name="field_srch_1a2" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" placeholder="Search entries..." class="border border-gray-300 rounded p-2 w-full focus:ring-brand focus:border-brand"></div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg overflow-x-auto">
+            <table class="min-w-full bg-white">
+                <thead><tr class="bg-brand-light text-brand-dark uppercase text-xs leading-normal border-b-2 border-brand">
+                    <th id="thSelectAll" class="py-3 px-4 text-left w-10 hidden"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+                    <th class="py-3 px-4 text-left w-10">#</th><th class="py-3 px-4 text-left">DATE</th><th class="py-3 px-4 text-left">NAME</th><th class="py-3 px-4 text-left">ID No.</th><th class="py-3 px-4 text-left">DESTINATION</th><th class="py-3 px-4 text-left">PURPOSE</th><th class="py-3 px-4 text-left">FROM</th><th class="py-3 px-4 text-left">EXITING</th><th class="py-3 px-4 text-left">ENTERING</th><th class="py-3 px-4 text-left">ACTION</th></tr></thead>
+                <tbody id="tableBody" class="text-gray-600 text-sm font-light"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        var DEFAULT_SERVER_CONFIG = {
+            apiKey: "AIzaSyDx4FewLdEcidQg5iKXkTPYmkwYZmpanPk",
+            authDomain: "movement-tracker-2142c.firebaseapp.com",
+            databaseURL: "https://movement-tracker-2142c-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "movement-tracker-2142c",
+            storageBucket: "movement-tracker-2142c.firebasestorage.app",
+            messagingSenderId: "91278856231",
+            appId: "1:91278856231:web:e68dbc2848be5cb052be02",
+            measurementId: "G-L5Z508P3C7"
+        };
+        (function(){try{var sc=localStorage.getItem('serverConfig_yy');if(sc)DEFAULT_SERVER_CONFIG=JSON.parse(sc);}catch(e){}}());
+        var firebaseConfig = DEFAULT_SERVER_CONFIG;
+
+        let db; let isFirebaseConnected = false;
+        try { if (firebaseConfig.apiKey !== "YOUR_API_KEY") { firebase.initializeApp(firebaseConfig); db = firebase.database(); isFirebaseConnected = true; } } catch (e) { console.error("Firebase init error:", e); }
+
+        /* ===== Device Identity (Hardware Fingerprint) ===== */
+          function _fnv32(s){var h=0x811c9dc5>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return('00000000'+(h>>>0).toString(16)).slice(-8);}
+          function _canvasFP(){try{var c=document.createElement('canvas');c.width=220;c.height=60;var x=c.getContext('2d');x.textBaseline='top';x.font='bold 14px Arial,sans-serif';x.fillStyle='#f05c37';x.fillRect(0,0,220,60);x.fillStyle='#fff';x.fillText('DeviceFingerprint\u2022YYK',2,5);x.font='italic 11px Georgia';x.fillStyle='rgba(60,120,255,0.85)';x.fillText('ABC\u03B1\u03B2\u03B3\u00E9\u00F1',10,28);x.beginPath();x.arc(180,30,22,0,Math.PI*2);x.fillStyle='rgba(20,200,100,0.6)';x.fill();return c.toDataURL().slice(-80);}catch(e){return 'nc';}}
+          function _buildFP(){var n=navigator,s=screen,tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone;}catch(e){}var parts=[(n.userAgent||'').replace(/\d+\.\d+\.\d+/g,'X'),n.language||n.userLanguage||'',n.hardwareConcurrency||'',n.deviceMemory||'',s.width+'x'+s.height,s.availWidth+'x'+s.availHeight,s.colorDepth||'',s.pixelDepth||'',n.platform||'',tz,(n.maxTouchPoints||0),_canvasFP()];return'fp_'+_fnv32(parts.join('||'));}
+          function getDeviceId(){try{var stored=localStorage.getItem('yykDeviceId');if(stored&&stored.startsWith('fp_'))return stored;}catch(e){}var fp=_buildFP();try{localStorage.setItem('yykDeviceId',fp);}catch(e){}return fp;}
+          const currentDeviceId=getDeviceId();
+          window._yykDID=currentDeviceId;
+          let deviceSuggestions={nameIdPairs:{}, destinations:{}, purposes:{}, froms:{}};
+            let personSuggestions={};   // { "Name": {destinations:{}, purposes:{}, froms:{}} }
+            let currentPersonName='';
+
+          const SUPER_USER_PASSWORD = 'ifarrafi';
+        let isAdmin = false, deleteTargetId = null, isBulkDelete = false, datePickerInstance = null, inlineEditId = null, editingId = null, editScrollTargetId = null;
+        let historyStack = [], historyIndex = -1;
+        
+        // Build Pairs from hardcoded map
+        const nameIdMap = { "Anwarul Islam": "03-3020", "Sadbin Habib Tushar": "06-6011", "Rezowan Noor Fariaz": "03-3046", "Bulbul Hossain": "03-3024", "Amit Hasan": "03-3025", "Mejbah uddin": "05-5008", "Md. Shafayet Hossain": "02-2020", "Md. Ripon Rana": "05-5009" };
+        const nameDeptMap = {};
+        const idNameMap = {}; for (const [n, id] of Object.entries(nameIdMap)) { idNameMap[id] = n; }
+
+        // Base Suggestions with Pairs
+        const seedPairs = {};
+        for(const [name, id] of Object.entries(nameIdMap)) { const dept = nameDeptMap[name]; seedPairs[`${name} (${id})${dept ? ' (' + dept + ')' : ''}`] = 100; }
+
+        const baseSuggestions = {
+            nameIdPairs: seedPairs,
+            destinations: {"Hams Garments Ltd": 100, "Eve Garments Ltd": 100, "Fashion Flow Ltd": 100, "AKR FASHION LTD": 100, "Shipra Fashion(New fcty)": 100, "Budget Trims and Accessories Ltd": 100, "Sensible Fashion (Pvt) Ltd": 100},
+            purposes: {"Production": 100, "RI and CCC order update meeting": 100, "For doing Sch Inline": 100, "New factory": 100, "183992 Final Inspection": 100, "production and sample follow up": 100, "Meeting for SDV production": 100, "Order follow up": 100, "Sample follow up": 100, "New factory visit": 100, "SDV PP sample": 100, "SDV SAMPLE FOLLOW UP": 100},
+            froms: {"Home": 100, "Office": 100}
+        };
+        let dynamicSuggestions = { nameIdPairs: {}, destinations: {}, purposes: {}, froms: {} };
+        const seedData = [
+            {_id: "seed1", date: "2025-12-01", name: "Mejbah uddin", idNo: "05-5008", dest: "Southern Designer ltd", purpose: "Production follow up", from: "Home", outTime: "18:30", inTime: "10:20"},
+            {_id: "seed2", date: "2026-01-02", name: "Sadbin Habib Tushar", idNo: "06-6011", dest: "AKR FASHION LTD", purpose: "SDV DEVELOPMENT FOLLOW UP", from: "Office", outTime: "09:45", inTime: ""},
+            {_id: "seed3", date: "2026-04-02", name: "Anwarul Islam", idNo: "03-3020", dest: "PRIMARK SWIMSHORT INQUIRY", purpose: "HOME", from: "Home", outTime: "07:30", inTime: "21:45"},
+        ];
+        const STANDARD_FIELD_ORDER = ['Date', 'Name', 'ID No.', 'Destination', 'Purpose', 'From', 'Exiting Time', 'Entering Time'];
+
+        /* ========== FIREBASE KEY ENCODING/DECODING ========== */
+        function encodeFBKey(key) {
+            return String(key).replace(/\./g, '___DOT___').replace(/#/g, '___HASH___').replace(/\$/g, '___DOLLAR___').replace(/\//g, '___SLASH___').replace(/\[/g, '___LBRACK___').replace(/\]/g, '___RBRACK___');
+        }
+        function decodeFBKey(key) {
+            return String(key).replace(/___DOT___/g, '.').replace(/___HASH___/g, '#').replace(/___DOLLAR___/g, '$').replace(/___SLASH___/g, '/').replace(/___LBRACK___/g, '[').replace(/___RBRACK___/g, ']');
+        }
+        function encodeForFB(obj) {
+            if (obj === null || obj === undefined) return obj;
+            if (Array.isArray(obj)) return obj.map(i => encodeForFB(i));
+            if (typeof obj === 'object') {
+                const r = {};
+                for (const k in obj) { if (obj.hasOwnProperty(k)) r[encodeFBKey(k)] = encodeForFB(obj[k]); }
+                return r;
+            }
+            return obj;
+        }
+        function decodeFromFB(obj) {
+            if (obj === null || obj === undefined) return obj;
+            if (Array.isArray(obj)) return obj.map(i => decodeFromFB(i));
+            if (typeof obj === 'object') {
+                const r = {};
+                for (const k in obj) { if (obj.hasOwnProperty(k)) r[decodeFBKey(k)] = decodeFromFB(obj[k]); }
+                return r;
+            }
+            return obj;
+        }
+
+        function convertTo24Hour(t) { if (!t) return ''; t = t.replace(/\./g, ':').toUpperCase().trim(); if (t.includes('AM') || t.includes('PM')) { const d = new Date(`01/01/2000 ${t}`); if (!isNaN(d.getTime())) return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; } const p = t.match(/(\d{1,2}):(\d{2})/); if (p) return `${p[1].padStart(2,'0')}:${p[2]}`; return ''; }
+        function convertTo12Hour(t) { if (!t) return '-'; const [h,m] = t.split(':').map(Number); const a = h >= 12 ? 'PM' : 'AM'; let hr = h % 12; hr = hr ? hr : 12; return `${hr}:${String(m).padStart(2,'0')} ${a}`; }
+        function formatTimeForInput(t) { if (!t) return ''; const [h,m] = t.split(':').map(Number); const a = h >= 12 ? 'PM' : 'AM'; let hr = h % 12; hr = hr ? hr : 12; return `${String(hr).padStart(2,'0')}:${String(m).padStart(2,'0')} ${a}`; }
+        function parseDateSmart(d) { if (!d) return ''; d = d.trim(); if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d; const m = d.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/); if (m) return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`; try { const dt = new Date(d); if (!isNaN(dt.getTime()) && dt.getFullYear() > 2000) return dt.toISOString().slice(0,10); } catch(e){} return ''; }
+
+        let movements = [];
+
+        function showToast(msg, type) { const t = document.getElementById('toastContainer'); t.textContent = msg; t.className = `toast toast-${type} show`; setTimeout(() => { t.className = 'toast'; }, 4000); }
+
+        /* ========== FIREBASE SAVE ========== */
+        function saveData(key, data) {
+            if (isFirebaseConnected) {
+                const dataToSave = (key === 'suggestions') ? encodeForFB(data) : data;
+                db.ref(key).set(dataToSave)
+                    .then(() => console.log(`[Firebase] Saved ${key}`))
+                    .catch(err => { console.error(`[Firebase] Error saving ${key}:`, err); showToast(`Firebase save error: ${err.message}`, 'error'); });
+            } else { try { sessionStorage.setItem(key, JSON.stringify(data)); } catch(e){} }
+        }
+        function loadData(key, fallback) { try { const s = sessionStorage.getItem(key); if (s) return JSON.parse(s); } catch(e){} return fallback; }
+        function pushToHistory(s) { historyStack = historyStack.slice(0, historyIndex + 1); historyStack.push(JSON.parse(JSON.stringify(s))); historyIndex++; if (historyStack.length > 50) { historyStack.shift(); historyIndex--; } }
+        function undo() { if (historyIndex > 0) { historyIndex--; movements = JSON.parse(JSON.stringify(historyStack[historyIndex])); saveData('movements', movements); processAndRender(); } }
+        function redo() { if (historyIndex < historyStack.length - 1) { historyIndex++; movements = JSON.parse(JSON.stringify(historyStack[historyIndex])); saveData('movements', movements); processAndRender(); } }
+        function commitAction() { pushToHistory(movements); saveData('movements', movements); saveData('suggestions', dynamicSuggestions); processAndRender(); }
+
+        function handleDateFocus(i) { setTimeout(() => { if (i.value === "" || i.selectionStart <= 2) i.setSelectionRange(0,2); else if (i.selectionStart <= 5) i.setSelectionRange(3,5); else i.setSelectionRange(6,10); }, 0); }
+        function handleDateKeydown(e, i) { if (e.key === 'Enter') { e.preventDefault(); const s = i.selectionStart; if (s <= 2) i.setSelectionRange(3,5); else if (s <= 5) i.setSelectionRange(6,10); else { const b = document.getElementById(`save-btn-${inlineEditId}`); if(b) b.click(); } } }
+        function handleTimeFocus(i) { setTimeout(() => { const s = i.selectionStart; if (i.value === "" || s <= 2) i.setSelectionRange(0,2); else if (s <= 5) i.setSelectionRange(3,5); else i.setSelectionRange(6,8); }, 0); }
+        function handleTimeKeydown(e, i, isLast) { if (e.key === 'Enter') { e.preventDefault(); const s = i.selectionStart; if (s <= 2) i.setSelectionRange(3,5); else if (s <= 5) i.setSelectionRange(6,8); else { if (inlineEditId) { const b = document.getElementById(`save-btn-${inlineEditId}`); if(b) b.click(); } else if (!isLast) document.getElementById('entryInTime').focus(); else document.getElementById('movementForm').requestSubmit(); } } }
+        window.addEventListener('keydown', function(e) { if ((e.ctrlKey||e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); } if ((e.ctrlKey||e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); } if (e.key === 'Enter' && inlineEditId) { const a = document.activeElement.id; if (a === `edit-date-${inlineEditId}` || a === `edit-out-${inlineEditId}` || a === `edit-in-${inlineEditId}`) return; e.preventDefault(); saveInlineEdit(inlineEditId); } });
+
+        function getPersonRecentScores(personName, cat) {
+            if (!personName || !['destinations','purposes','froms'].includes(cat)) return {};
+            const fieldMap = { destinations: 'dest', purposes: 'purpose', froms: 'from' };
+            const field = fieldMap[cat];
+            const personEntries = movements
+                .filter(m => m.name && m.name.trim().toLowerCase() === personName.trim().toLowerCase() && m[field] && m[field].trim())
+                .sort((a, b) => {
+                    const dc = (b.date || '').localeCompare(a.date || '');
+                    return dc !== 0 ? dc : (b.outTime || '').localeCompare(a.outTime || '');
+                });
+            const scores = {};
+            let rank = 0;
+            personEntries.forEach(entry => {
+                const val = entry[field].trim();
+                if (!(val in scores)) {
+                    scores[val] = Math.max(50, 1000 - rank * 80);
+                    rank++;
+                }
+            });
+            return scores;
+        }
+
+        function getMergedSuggestions(cat) {
+            let m = {...baseSuggestions[cat]};
+            for (const k in dynamicSuggestions[cat]) { m[k] = (m[k]||0) + dynamicSuggestions[cat][k]; }
+            const dev   = deviceSuggestions[cat] || {};
+            const pers  = (currentPersonName && personSuggestions[currentPersonName])
+                          ? (personSuggestions[currentPersonName][cat] || {}) : {};
+            const recency = getPersonRecentScores(currentPersonName, cat);
+
+            for (const val in recency) {
+                if (m[val] === undefined) m[val] = 1;
+            }
+
+            const hasPersonHistory = Object.keys(recency).length > 0;
+            return Object.entries(m).filter(i => i[1] > 0).sort((a, b) => {
+                const ar = recency[a[0]] || 0;
+                const br = recency[b[0]] || 0;
+                const aScore = a[1] + (dev[a[0]]||0)*5 + (pers[a[0]]||0)*10 + (hasPersonHistory ? ar * 20 : 0);
+                const bScore = b[1] + (dev[b[0]]||0)*5 + (pers[b[0]]||0)*10 + (hasPersonHistory ? br * 20 : 0);
+                return bScore - aScore;
+            }).map(i => i[0]);
+        }
+        function populateDropdown(dd, cat, ft) {
+            dd.innerHTML = '';
+            const all = getMergedSuggestions(cat);
+            const f = ft ? all.filter(i => i.toLowerCase().includes(ft.toLowerCase())) : all;
+            if (f.length === 0) { dd.classList.add('hidden'); return; }
+            const isPersonField = ['destinations','purposes','froms'].includes(cat);
+            const recency = isPersonField ? getPersonRecentScores(currentPersonName, cat) : {};
+            const hasHistory = Object.keys(recency).length > 0;
+
+            if (isPersonField && hasHistory && currentPersonName) {
+                const personItems = f.filter(i => recency[i] !== undefined);
+                const otherItems  = f.filter(i => recency[i] === undefined);
+
+                if (personItems.length > 0) {
+                    const hdr = document.createElement('div');
+                    hdr.className = 'suggestion-header';
+                    hdr.textContent = '★ ' + currentPersonName.split(' ')[0] + '\'s recent';
+                    dd.appendChild(hdr);
+                    personItems.forEach(i => dd.appendChild(makeSuggestionItem(i, dd)));
+                }
+                if (otherItems.length > 0) {
+                    if (personItems.length > 0) {
+                        const hr = document.createElement('hr');
+                        hr.className = 'suggestion-divider';
+                        dd.appendChild(hr);
+                    }
+                    otherItems.forEach(i => dd.appendChild(makeSuggestionItem(i, dd)));
+                }
+            } else {
+                f.forEach(i => dd.appendChild(makeSuggestionItem(i, dd)));
+            }
+            dd.classList.remove('hidden');
+        }
+        function makeSuggestionItem(text, dd) {
+            const d = document.createElement('div');
+            d.className = 'suggestion-item';
+            d.textContent = text;
+            d.onmousedown = (e) => {
+                e.preventDefault();
+                const inp = document.getElementById(dd.id.replace('dropdown-',''));
+                
+                // SPECIAL LOGIC FOR PAIRS
+                if(dd.id === 'dropdown-entryName' || dd.id.startsWith('dropdown-edit-name-')) {
+                    // Check if format is Name (ID)
+                    const match = text.match(/^(.+?)\s+\(([^)]+)\)(?:\s+\([^)]+\))?$/);
+                    if(match) {
+                        // It is a pair. Fill Name and ID.
+                        const name = match[1];
+                        const id = match[2];
+                        inp.value = name;
+                        
+                        // Find the ID input in the same row or form
+                        let idInputId = 'entryIDDisplay';
+                        if(dd.id.startsWith('dropdown-edit-name-')) {
+                            const rowId = dd.id.replace('dropdown-edit-name-', '');
+                            idInputId = `edit-id-${rowId}`;
+                        }
+                        const idInp = document.getElementById(idInputId);
+                        if(idInp) idInp.value = id;
+                        
+                        // Trigger change to update hidden ID if needed
+                        if(idInputId === 'entryIDDisplay') {
+                            document.getElementById('entryID').value = id;
+                        }
+                    } else {
+                        // Just a name
+                        inp.value = text;
+                    }
+                } else {
+                    inp.value = text;
+                }
+
+                dd.classList.add('hidden');
+                inp.dispatchEvent(new Event('change'));
+            };
+            return d;
+        }
+        // Populate ID dropdown with IDs extracted from nameIdPairs suggestions
+        function populateIdDropdown(dd, ft) {
+            dd.innerHTML = '';
+            const pairs = getMergedSuggestions('nameIdPairs');
+            const idMap = {};
+            pairs.forEach(p => {
+                const m = p.match(/^(.+?)\s+\(([^)]+)\)/);
+                if(m && !idMap[m[2]]) idMap[m[2]] = m[1];
+            });
+            const ids = Object.keys(idMap);
+            const f = ft ? ids.filter(i => i.toLowerCase().includes(ft.toLowerCase())) : ids;
+            if(f.length === 0) { dd.classList.add('hidden'); return; }
+            f.forEach(idVal => {
+                const name = idMap[idVal];
+                const d = document.createElement('div');
+                d.className = 'suggestion-item';
+                d.innerHTML = `<span class="font-medium">${idVal}</span>${name ? `<span class="text-gray-400 text-xs ml-2">${name}</span>` : ''}`;
+                d.onmousedown = (e) => {
+                    e.preventDefault();
+                    document.getElementById('entryIDDisplay').value = idVal;
+                    document.getElementById('entryID').value = idVal;
+                    if(name) { document.getElementById('entryName').value = name; currentPersonName = name; }
+                    dd.classList.add('hidden');
+                };
+                dd.appendChild(d);
+            });
+            dd.classList.remove('hidden');
+        }
+        function setupSuggestionInput(id, cat) { 
+            const inp = document.getElementById(id); 
+            const dd = document.getElementById(`dropdown-${id}`); 
+            if(!inp||!dd) return;
+
+            // ID display field: uses custom dropdown showing IDs from nameIdPairs
+            if(id === 'entryIDDisplay') {
+                inp.addEventListener('focus', () => populateIdDropdown(dd, inp.value));
+                inp.addEventListener('input', () => populateIdDropdown(dd, inp.value));
+                inp.addEventListener('blur', () => setTimeout(() => dd.classList.add('hidden'), 150));
+                return;
+            }
+            
+            // If id is 'entryName', we use cat='nameIdPairs'
+            let effectiveCat = cat;
+            if(id === 'entryName' || id.startsWith('edit-name-')) effectiveCat = 'nameIdPairs';
+
+            inp.addEventListener('focus', () => populateDropdown(dd, effectiveCat, inp.value)); 
+            inp.addEventListener('input', () => populateDropdown(dd, effectiveCat, inp.value)); 
+            inp.addEventListener('blur', () => setTimeout(() => dd.classList.add('hidden'), 150)); 
+        }
+        function addSuggestion(cat, val) {
+                if (val && dynamicSuggestions[cat] !== undefined) { if (!dynamicSuggestions[cat][val]) dynamicSuggestions[cat][val] = 0; dynamicSuggestions[cat][val]++; }
+                if (val && deviceSuggestions[cat] !== undefined) { if (!deviceSuggestions[cat][val]) deviceSuggestions[cat][val] = 0; deviceSuggestions[cat][val]++; saveDeviceSuggestions(); }
+                if (val && currentPersonName && ['destinations','purposes','froms'].includes(cat)) {
+                    if (!personSuggestions[currentPersonName]) personSuggestions[currentPersonName]={destinations:{},purposes:{},froms:{}};
+                    const ps=personSuggestions[currentPersonName];
+                    if (!ps[cat]) ps[cat]={};
+                    if (!ps[cat][val]) ps[cat][val]=0;
+                    ps[cat][val]++;
+                    savePersonSuggestions();
+                }
+            }
+            function savePersonSuggestions(){if(isFirebaseConnected){db.ref('personSuggestions').set(encodeForFB(personSuggestions)).catch(e=>console.error(e));}else{try{localStorage.setItem('mePersonSugs',JSON.stringify(personSuggestions));}catch(e){}}}
+          function saveDeviceSuggestions(){if(isFirebaseConnected){db.ref('deviceSuggestions/'+currentDeviceId).set(encodeForFB(deviceSuggestions)).catch(e=>console.error(e));}else{try{localStorage.setItem('meDevSugs_'+currentDeviceId,JSON.stringify(deviceSuggestions));}catch(e){}}}
+          function saveDevicePrefs(name,idNo){const p={name:name||'',idNo:idNo||''};if(isFirebaseConnected){db.ref('devicePrefs/'+currentDeviceId).set(p).catch(e=>console.error(e));}try{localStorage.setItem('mePrefs_'+currentDeviceId,JSON.stringify(p));}catch(e){}}
+          function applyDevicePrefs(prefs){if(!prefs||!prefs.name)return;document.getElementById('entryName').value=prefs.name;document.getElementById('entryIDDisplay').value=prefs.idNo||'';document.getElementById('entryID').value=prefs.idNo||'';currentPersonName=prefs.name;}
+
+        /* ========== BULK PDF UPLOAD ========== */
+        async function handlePdfUpload(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+
+            const progressEl = document.getElementById('pdfProgress');
+            const progressText = document.getElementById('pdfProgressText');
+            const progressBar = document.getElementById('pdfProgressBar');
+            progressEl.classList.remove('hidden');
+
+            let allExtracted = [];
+
+            for (let f = 0; f < files.length; f++) {
+                const file = files[f];
+                progressText.textContent = `File ${f+1}/${files.length}: ${file.name}`;
+                progressBar.style.width = `${((f) / files.length) * 100}%`;
+
+                try {
+                    const entries = await parseSinglePdf(file);
+                    entries.forEach(e => e.deviceId = currentDeviceId);
+                    allExtracted.push(...entries);
+                    progressText.textContent = `File ${f+1}/${files.length}: ${file.name} - ${entries.length} entries found`;
+                } catch(err) {
+                    console.error(`Error parsing ${file.name}:`, err);
+                    progressText.textContent = `File ${f+1}/${files.length}: ${file.name} - ERROR`;
+                }
+
+                progressBar.style.width = `${((f+1) / files.length) * 100}%`;
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            if (allExtracted.length > 0) {
+                const newEntries = allExtracted.filter(e => !isDuplicateEntry(e));
+                newEntries.forEach(e => { 
+                    addSuggestion('nameIdPairs', `${e.name} (${e.idNo})`); // Add pair suggestion
+                    addSuggestion('destinations', e.dest); 
+                    addSuggestion('purposes', e.purpose); 
+                    addSuggestion('froms', e.from); 
+                });
+                movements.push(...newEntries);
+                commitAction();
+                const dupSkipped = allExtracted.length - newEntries.length;
+                showToast(`Imported ${newEntries.length} entries from ${files.length} PDF(s)!${dupSkipped > 0 ? ` (${dupSkipped} dupes skipped)` : ''}`, 'success');
+            } else {
+                showToast(`No valid entries found in ${files.length} PDF(s). Column order: Date, Name, ID, Destination, Purpose, From, Exiting, Entering`, 'error');
+            }
+
+            progressEl.classList.add('hidden');
+            event.target.value = '';
+        }
+
+        async function parseSinglePdf(file) {
+            return new Promise((resolve, reject) => {
+                const fileReader = new FileReader();
+                fileReader.onload = async function() {
+                    try {
+                        const typedArray = new Uint8Array(this.result);
+                        const pdf = await pdfjsLib.getDocument(typedArray).promise;
+                        let allItems = [];
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const tc = await page.getTextContent();
+                            tc.items.forEach(item => { if (item.str.trim() !== "") allItems.push({ page: i, x: item.transform[4], y: item.transform[5], text: item.str.trim() }); });
+                        }
+                        allItems.sort((a,b) => { if (a.page !== b.page) return a.page - b.page; if (Math.abs(a.y - b.y) > 2) return b.y - a.y; return a.x - b.x; });
+                        let rows = [], curRow = [], curY = null;
+                        allItems.forEach(item => { if (curY === null || Math.abs(item.y - curY) > 2) { if (curRow.length > 0) rows.push(curRow); curRow = [item]; curY = item.y; } else curRow.push(item); });
+                        if (curRow.length > 0) rows.push(curRow);
+                        let textRows = rows.map(r => { r.sort((a,b) => a.x - b.x); return r.map(i => i.text); });
+
+                        let dataStartIdx = 0;
+                        const hk = ['date','name','id','dest','purpose','from','exit','enter','sl','no'];
+                        for (let i = 0; i < Math.min(textRows.length, 5); i++) {
+                            const rt = textRows[i].join(' ').toLowerCase();
+                            if (hk.some(kw => rt.includes(kw)) && !textRows[i].some(c => parseDateSmart(c))) { dataStartIdx = i + 1; break; }
+                        }
+
+                        let extracted = [];
+                        for (let i = dataStartIdx; i < textRows.length; i++) {
+                            const row = textRows[i];
+                            if (row.filter(c => c.trim() !== '').length < 2) continue;
+                            let startIdx = -1;
+                            for (let j = 0; j < row.length; j++) { if (parseDateSmart(row[j])) { startIdx = j; break; } }
+                            if (startIdx === -1) { if (row.length >= 2 && /^\d+$/.test(row[0].trim()) && row.length > 2) startIdx = 1; else continue; }
+
+                            let entry = { _id: "pdf_" + Date.now() + "_r" + i + "_" + Math.random().toString(36).substr(2,5), date:'', name:'', idNo:'', dest:'', purpose:'', from:'', outTime:'', inTime:'' };
+                            for (let f = 0; f < STANDARD_FIELD_ORDER.length; f++) {
+                                const ci = startIdx + f; if (ci >= row.length) break;
+                                const val = (row[ci]||'').trim(); if (!val) continue;
+                                const field = STANDARD_FIELD_ORDER[f];
+                                if (field === 'Date') { const d = parseDateSmart(val); if (d) entry.date = d; }
+                                else if (field === 'Name') entry.name = val;
+                                else if (field === 'ID No.') entry.idNo = val;
+                                else if (field === 'Destination') entry.dest = val;
+                                else if (field === 'Purpose') entry.purpose = val;
+                                else if (field === 'From') entry.from = val;
+                                else if (field === 'Exiting Time') { const t = convertTo24Hour(val); if (t) entry.outTime = t; }
+                                else if (field === 'Entering Time') { const t = convertTo24Hour(val); if (t) entry.inTime = t; }
+                            }
+                            if (entry.date && entry.name) extracted.push(entry);
+                        }
+                        resolve(extracted);
+                    } catch(err) { reject(err); }
+                };
+                fileReader.onerror = () => reject(new Error('File read error'));
+                fileReader.readAsArrayBuffer(file);
+            });
+        }
+
+        /* ========== SUGGESTIONS MANAGER ========== */
+        let currentSuggestionTab = 'nameIdPairs'; // Default to Pairs
+        function openSuggestionManager() { document.getElementById('suggestionsModal').classList.remove('hidden'); document.body.style.overflow = 'hidden'; switchSuggestionTab('nameIdPairs'); }
+        function closeSuggestionManager() { document.getElementById('suggestionsModal').classList.add('hidden'); document.body.style.overflow = ''; }
+        function switchSuggestionTab(tab) { 
+            currentSuggestionTab = tab; 
+            document.querySelectorAll('.tab-btn').forEach(b => { 
+                if(b.dataset.tab===tab){b.classList.add('border-brand','text-brand');b.classList.remove('border-transparent','text-gray-500');}else{b.classList.remove('border-brand','text-brand');b.classList.add('border-transparent','text-gray-500');} 
+            }); 
+            renderSuggestionList(); 
+        }
+        function renderSuggestionList() { 
+            const lc = document.getElementById('suggestionsList'); 
+            lc.innerHTML = ''; 
+            let m = {...baseSuggestions[currentSuggestionTab]}; 
+            for(const k in dynamicSuggestions[currentSuggestionTab]){m[k]=(m[k]||0)+dynamicSuggestions[currentSuggestionTab][k];} 
+            
+            // FIX: Filter out deleted items (score <= 0). They will not appear in the list at all.
+            const sk = Object.keys(m).filter(k => m[k] > 0).sort(); 
+            
+            if(!sk.length){lc.innerHTML='<p class="text-gray-500 text-center py-4">No suggestions found.</p>';return;}
+            sk.forEach((key,idx)=>{
+                const sc=m[key];const sk2=key.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+                const d=document.createElement('div');
+                d.className=`flex items-center justify-between p-2 rounded border bg-gray-50 border-gray-200 gap-2`;
+                if(currentSuggestionTab==='nameIdPairs'){
+                    const pm=key.match(/^(.+?)\s+\(([^)]+)\)(?:\s+\(([^)]*)\))?$/);
+                    let dName=key,dId='',dDept='';
+                    if(pm){dName=pm[1];dId=pm[2];dDept=pm[3]||'';}
+                    const safeDept=dDept.replace(/"/g,'&quot;');
+                    const iid='dept-inp-'+idx;
+                    d.innerHTML=`<div class="flex-1 min-w-0"><span class="font-medium text-gray-800">${dName}</span>${dId?`<span class="text-gray-500 ml-1 text-sm">(${dId})</span>`:''} ${dDept?`<span class="text-xs font-semibold text-brand ml-1 bg-brand-light px-1.5 py-0.5 rounded">(${dDept})</span>`:''}</div><div class="flex items-center gap-1 shrink-0"><input type="text" id="${iid}" value="${safeDept}" placeholder="Dept…" title="Enter department e.g. QA, Admin, Merchandiser" class="border border-gray-300 rounded px-2 py-1 text-xs w-24 focus:border-brand focus:outline-none" onkeypress="if(event.key==='Enter'){event.preventDefault();setDepartment('${sk2}',this.value.trim());}"><button onclick="setDepartment('${sk2}',document.getElementById('${iid}').value.trim())" class="bg-brand text-white px-2 py-1 rounded text-xs hover:bg-brand-dark font-medium whitespace-nowrap">Set</button><button onclick="editSuggestionPrompt('${sk2}')" class="text-blue-500 hover:text-blue-700 px-2" title="Edit"><i class="fas fa-edit"></i></button><button onclick="deleteSuggestion('${sk2}')" class="text-red-500 hover:text-red-700 px-2" title="Delete"><i class="fas fa-trash"></i></button></div>`;
+                } else {
+                    d.innerHTML=`<span class="flex-1 mr-2 text-gray-800">${key}</span><div class="flex gap-2 shrink-0"><button onclick="editSuggestionPrompt('${sk2}')" class="text-blue-500 hover:text-blue-700 px-2" title="Edit"><i class="fas fa-edit"></i></button><button onclick="deleteSuggestion('${sk2}')" class="text-red-500 hover:text-red-700 px-2" title="Delete"><i class="fas fa-trash"></i></button></div>`;
+                }
+                lc.appendChild(d);
+            });
+        }
+        function addNewSuggestion(){
+            const i=document.getElementById('newSuggestionInput');const v=i.value.trim();if(!v)return;
+            if(!dynamicSuggestions[currentSuggestionTab])dynamicSuggestions[currentSuggestionTab]={};
+            let m={...baseSuggestions[currentSuggestionTab],...dynamicSuggestions[currentSuggestionTab]};
+            if(m[v]!==undefined&&m[v]>0){alert("Already exists!");return;}
+            
+            // Pairs logic: ensure format is roughly "Name (ID)"
+            if(currentSuggestionTab === 'nameIdPairs') {
+                if(!v.includes('(') || !v.includes(')')) {
+                    if(!confirm("Does not look like a 'Name (ID)' or 'Name (ID) (Dept)' pair. Add anyway?")) return;
+                }
+            }
+
+            if(dynamicSuggestions[currentSuggestionTab][v]!==undefined&&dynamicSuggestions[currentSuggestionTab][v]<=0)dynamicSuggestions[currentSuggestionTab][v]=100;else if(!dynamicSuggestions[currentSuggestionTab][v])dynamicSuggestions[currentSuggestionTab][v]=100;i.value='';renderSuggestionList();saveData('suggestions',dynamicSuggestions);
+        }
+        function deleteSuggestion(k){if(!dynamicSuggestions[currentSuggestionTab])dynamicSuggestions[currentSuggestionTab]={};if(baseSuggestions[currentSuggestionTab]&&baseSuggestions[currentSuggestionTab][k])dynamicSuggestions[currentSuggestionTab][k]=-100;else delete dynamicSuggestions[currentSuggestionTab][k];renderSuggestionList();saveData('suggestions',dynamicSuggestions);}
+        function restoreSuggestion(k){if(dynamicSuggestions[currentSuggestionTab]&&dynamicSuggestions[currentSuggestionTab][k]<=0){dynamicSuggestions[currentSuggestionTab][k]=100;renderSuggestionList();saveData('suggestions',dynamicSuggestions);}}
+
+        function setDepartment(oldKey, dept){
+            const pm=oldKey.match(/^(.+?)\s+\(([^)]+)\)(?:\s+\([^)]*\))?$/);
+            if(!pm){showToast('Invalid pair format','error');return;}
+            const name=pm[1],id=pm[2];
+            const newKey=dept?`${name} (${id}) (${dept})`:`${name} (${id})`;
+            if(newKey===oldKey)return;
+            let mm={...baseSuggestions[currentSuggestionTab],...dynamicSuggestions[currentSuggestionTab]};
+            if(mm[newKey]&&mm[newKey]>0){showToast('Already exists!','error');return;}
+            let score=(baseSuggestions[currentSuggestionTab]?.[oldKey]||0);
+            if(dynamicSuggestions[currentSuggestionTab]?.[oldKey]!==undefined)score+=dynamicSuggestions[currentSuggestionTab][oldKey];
+            if(score<=0)score=100;
+            if(baseSuggestions[currentSuggestionTab]?.[oldKey])dynamicSuggestions[currentSuggestionTab][oldKey]=-100;
+            else if(dynamicSuggestions[currentSuggestionTab]?.[oldKey]!==undefined)delete dynamicSuggestions[currentSuggestionTab][oldKey];
+            if(!dynamicSuggestions[currentSuggestionTab])dynamicSuggestions[currentSuggestionTab]={};
+            dynamicSuggestions[currentSuggestionTab][newKey]=score;
+            renderSuggestionList();
+            saveData('suggestions',dynamicSuggestions);
+            showToast(dept?`Department set to "${dept}"`:'Department cleared','success');
+        }
+        
+        let isCustomPromptActive = false;
+        function customPrompt(message, defaultValue, callback) {
+            if (isCustomPromptActive) return;
+            isCustomPromptActive = true;
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;justify-content:center;align-items:center;';
+            const box = document.createElement('div');
+            box.style.cssText = 'background:white;padding:24px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.2);width:320px;';
+            const msg = document.createElement('p');
+            msg.textContent = message;
+            msg.style.cssText = 'margin:0 0 16px 0;font-weight:700;color:#072e27;font-size:15px;';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = defaultValue;
+            input.setAttribute('autocomplete', 'off');
+            input.setAttribute('data-lpignore', 'true');
+            input.style.cssText = 'width:100%;padding:10px 12px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px;box-sizing:border-box;outline:none;transition:border-color 0.2s, box-shadow 0.2s;';
+            input.addEventListener('focus', function() { this.style.borderColor = '#0A4038'; this.style.boxShadow = '0 0 0 1px #0A4038'; });
+            input.addEventListener('blur', function() { this.style.borderColor = '#cbd5e0'; this.style.boxShadow = 'none'; });
+            const btnContainer = document.createElement('div');
+            btnContainer.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;margin-top:20px;';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.style.cssText = 'padding:8px 20px;border-radius:6px;background:#e2e8f0;color:#4a5568;cursor:pointer;font-weight:600;border:none;font-size:14px;transition:background 0.2s;';
+            cancelBtn.onmouseover = function() { this.style.background='#cbd5e0'; };
+            cancelBtn.onmouseout = function() { this.style.background='#e2e8f0'; };
+            cancelBtn.onclick = function() { document.body.removeChild(overlay); isCustomPromptActive = false; callback(null); };
+            const okBtn = document.createElement('button');
+            okBtn.textContent = 'Save';
+            okBtn.style.cssText = 'padding:8px 20px;border-radius:6px;background:#0A4038;color:white;cursor:pointer;font-weight:700;border:none;font-size:14px;transition:background 0.2s;';
+            okBtn.onmouseover = function() { this.style.background='#072e27'; };
+            okBtn.onmouseout = function() { this.style.background='#0A4038'; };
+            okBtn.onclick = function() { document.body.removeChild(overlay); isCustomPromptActive = false; callback(input.value); };
+            input.onkeydown = function(e) { if(e.key === 'Enter') { e.preventDefault(); okBtn.click(); } if(e.key === 'Escape') { e.preventDefault(); cancelBtn.click(); } };
+            btnContainer.appendChild(cancelBtn);
+            btnContainer.appendChild(okBtn);
+            box.appendChild(msg);
+            box.appendChild(input);
+            box.appendChild(btnContainer);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            input.focus();
+            input.select();
+        }
+
+        function editSuggestionPrompt(ok){
+            customPrompt("Edit suggestion:", ok, function(nk) {
+                if(nk!==null&&nk.trim()!==""&&nk.trim()!==ok){
+                    const tnk=nk.trim();
+                    let m={...baseSuggestions[currentSuggestionTab],...dynamicSuggestions[currentSuggestionTab]};
+                    if(m[tnk]&&m[tnk]>0){
+                        showToast("Already exists!", "error");
+                        return;
+                    }
+                    let os=baseSuggestions[currentSuggestionTab]?.[ok]||0;
+                    if(dynamicSuggestions[currentSuggestionTab]?.[ok]!==undefined)os+=dynamicSuggestions[currentSuggestionTab][ok];
+                    else if(os===0)os=100;
+                    
+                    if(os<=0)os=100;
+                    
+                    if(baseSuggestions[currentSuggestionTab]?.[ok])dynamicSuggestions[currentSuggestionTab][ok]=-100;
+                    else if(dynamicSuggestions[currentSuggestionTab]?.[ok])delete dynamicSuggestions[currentSuggestionTab][ok];
+                    
+                    dynamicSuggestions[currentSuggestionTab][tnk]=os;
+                    renderSuggestionList();
+                    saveData('suggestions',dynamicSuggestions);
+                }
+            });
+        }
+
+        function clearAllSuggestions(){if(confirm(`Delete ALL ${currentSuggestionTab} suggestions?`)){dynamicSuggestions[currentSuggestionTab]={};for(let k in baseSuggestions[currentSuggestionTab])dynamicSuggestions[currentSuggestionTab][k]=-100;renderSuggestionList();saveData('suggestions',dynamicSuggestions);}}
+
+        // ==================== PASTE IMPORT ====================
+        const PASTE_FIELD_OPTIONS = ['-- Skip --', 'Date', 'Name', 'ID No.', 'Destination', 'Purpose', 'From', 'Exiting Time', 'Entering Time'];
+        let parsedRawRows=[], parsedData=[], parsedHeaders=[], columnMapping=[], hasHeaderRow=false;
+
+        function openPasteImport(){document.getElementById('pasteImportModal').classList.remove('hidden');document.body.style.overflow='hidden';clearPasteArea();}
+        function closePasteImport(){document.getElementById('pasteImportModal').classList.add('hidden');document.body.style.overflow='';}
+        function clearPasteArea(){document.getElementById('pasteArea').value='';document.getElementById('previewSection').classList.add('hidden');document.getElementById('columnMappingSection').classList.add('hidden');document.getElementById('parseStatus').textContent='';parsedData=[];parsedRawRows=[];parsedHeaders=[];columnMapping=[];hasHeaderRow=false;}
+
+        function detectDelimiter(lines){const f=lines[0]||'';const tc=(f.match(/\t/g)||[]).length;const cc=(f.match(/,/g)||[]).length;const pc=(f.match(/\|/g)||[]).length;const sc=(f.match(/;/g)||[]).length;if(tc>=2)return'\t';if(cc>=2&&cc>=tc)return',';if(sc>=2)return';';if(pc>=2)return'|';if(f.match(/\S+\s{2,}\S+/))return'multi-space';return'\t';}
+        function splitLine(line,d){if(d==='multi-space')return line.split(/\s{2,}/).map(s=>s.trim()).filter(s=>s!=='');if(d===','){const r=[];let c='',q=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){q=!q;continue;}if(ch===','&&!q){r.push(c.trim());c='';continue;}c+=ch;}r.push(c.trim());return r;}return line.split(d).map(s=>s.trim());}
+        function isDateLike(v){if(!v)return false;return!!parseDateSmart(v.trim());}
+        function isTimeLike(v){if(!v)return false;v=v.trim();return/^\d{1,2}:\d{2}\s*(AM|PM)?$/i.test(v);}
+        function isIdLike(v){if(!v)return false;return/^\d{1,2}-\d{3,5}$/.test(v.trim());}
+
+        function autoDetectColumns(headers,sampleRows){const nc=headers.length;let mapping=new Array(nc).fill('-- Skip --');const hk={'Date':['date','dates','tarikh'],'Name':['name','names','full name','employee'],'ID No.':['id no','id number','emp id','staff id','id','id no.'],'Destination':['dest','destination','place','location'],'Purpose':['purpose','reason','remarks'],'From':['from','origin'],'Exiting Time':['exit','out','departure','time out','out time','leaving'],'Entering Time':['enter','in time','arrival','time in','return','entering']};const sk=['#','sl','no','s/n','serial','sn'];let used=new Set();let scores=[];for(let i=0;i<nc;i++){const h=headers[i].toLowerCase().trim();let bf='-- Skip --',bs=0;for(const kw of sk){if(h===kw||h===kw+'.'){bf='-- Skip --';bs=200;break;}}if(bs<200){for(const[field,kws]of Object.entries(hk)){for(const kw of kws){if(h===kw){bf=field;bs=100;break;}if(h.includes(kw)&&h.length>=2&&bs<60){bf=field;bs=60;}}if(bs===100)break;}}scores.push({field:bf,score:bs,idx:i});}scores.sort((a,b)=>b.score-a.score);for(const s of scores){if(s.score>=50&&!used.has(s.field)&&s.field!=='-- Skip --'){mapping[s.idx]=s.field;used.add(s.field);}}if(used.size>=5){validateAndCorrect(mapping,sampleRows);return mapping;}mapping=new Array(nc).fill('-- Skip --');let fdc=0;if(nc>STANDARD_FIELD_ORDER.length){const s=sampleRows.map(r=>(r[0]||'').trim()).filter(s=>s!=='');if(s.length>0&&s.every(s=>/^\d+$/.test(s)))fdc=1;}for(let i=fdc;i<nc;i++){let fi=i-fdc;if(fi<STANDARD_FIELD_ORDER.length)mapping[i]=STANDARD_FIELD_ORDER[i-fdc];}validateAndCorrect(mapping,sampleRows);return mapping;}
+
+        function validateAndCorrect(mapping,sampleRows){const nc=mapping.length;let di=mapping.indexOf('Date');if(di!==-1){const s=sampleRows.map(r=>(r[di]||'').trim()).filter(s=>s!=='');if(s.length>0&&!s.some(s=>isDateLike(s))){for(let i=0;i<nc;i++){const s2=sampleRows.map(r=>(r[i]||'').trim()).filter(s=>s!=='');if(s2.some(s=>isDateLike(s))){const ot=mapping[i];mapping[i]='Date';mapping[di]=ot!=='-- Skip --'?ot:'-- Skip --';break;}}}}['Exiting Time','Entering Time'].forEach(tf=>{let ti=mapping.indexOf(tf);if(ti!==-1){const s=sampleRows.map(r=>(r[ti]||'').trim()).filter(s=>s!=='');if(s.length>0&&!s.some(s=>isTimeLike(s)||s===''||s==='-')){for(let i=nc-1;i>=0;i--){const s2=sampleRows.map(r=>(r[i]||'').trim()).filter(s=>s!=='');if(s2.some(s=>isTimeLike(s))){const ot=mapping[i];mapping[i]=tf;mapping[ti]=ot!=='-- Skip --'?ot:'-- Skip --';break;}}}}});let seen=new Set();for(let i=0;i<nc;i++){if(mapping[i]==='-- Skip --')continue;if(seen.has(mapping[i]))mapping[i]='-- Skip --';else seen.add(mapping[i]);}}
+
+        function buildEntriesFromMapping(){const dr=hasHeaderRow?parsedRawRows.slice(1):parsedRawRows;return dr.map((row,ri)=>{let e={_id:'paste_'+Date.now()+'_r'+ri+'_'+Math.random().toString(36).substr(2,5),date:'',name:'',idNo:'',dest:'',purpose:'',from:'',outTime:'',inTime:''};let any=false;columnMapping.forEach((f,idx)=>{const v=(row[idx]||'').trim();if(f==='-- Skip --'||!v)return;any=true;if(f==='Date'){const d=parseDateSmart(v);if(d)e.date=d;}else if(f==='Name')e.name=v;else if(f==='ID No.')e.idNo=v;else if(f==='Destination')e.dest=v;else if(f==='Purpose')e.purpose=v;else if(f==='From')e.from=v;else if(f==='Exiting Time'){const t=convertTo24Hour(v);if(t)e.outTime=t;}else if(f==='Entering Time'){const t=convertTo24Hour(v);if(t)e.inTime=t;}});return(any&&(e.date||e.name))?e:null;}).filter(e=>e!==null);}
+
+        function parsePastedData(){try{const rt=document.getElementById('pasteArea').value.trim();if(!rt){alert('Paste data first.');return;}const lines=rt.split('\n').map(l=>l.trimEnd()).filter(l=>l.trim()!=='');if(!lines.length){alert('No data.');return;}const dl=detectDelimiter(lines);parsedRawRows=lines.map(l=>splitLine(l,dl));const mc=Math.max(...parsedRawRows.map(r=>r.length));parsedRawRows=parsedRawRows.map(r=>{while(r.length<mc)r.push('');return r;});if(mc<2){alert('Need multiple columns. Try tab-separated data.');return;}const fr=parsedRawRows[0];const hk=['date','name','id','dest','purpose','from','exit','enter','out','time','sl','#'];hasHeaderRow=fr.some(c=>hk.some(kw=>c.toLowerCase().includes(kw)));if(fr.filter(v=>isDateLike(v)||isTimeLike(v)||isIdLike(v)).length===0&&fr.some(v=>/[a-zA-Z]{2,}/.test(v)))hasHeaderRow=true;parsedHeaders=hasHeaderRow?fr.map((h,i)=>h.trim()||`Col ${i+1}`):fr.map((_,i)=>`Col ${i+1}`);const sr=hasHeaderRow?parsedRawRows.slice(1,6):parsedRawRows.slice(0,5);columnMapping=autoDetectColumns(parsedHeaders,sr);parsedData=buildEntriesFromMapping();renderColumnMapping();renderPreview();const dn=dl==='\t'?'Tab':dl===','?'Comma':dl===';'?'Semicolon':dl==='|'?'Pipe':'Multi-space';document.getElementById('parseStatus').innerHTML=`<i class="fas fa-check-circle text-green-500 mr-1"></i> ${mc} cols, ${parsedRawRows.length-(hasHeaderRow?1:0)} rows (${dn})`}catch(err){console.error("Parse error:",err);document.getElementById('parseStatus').innerHTML=`<i class="fas fa-exclamation-circle text-red-500 mr-1"></i> ${err.message}`;}}
+
+        function renderColumnMapping(){const c=document.getElementById('columnMapping');c.innerHTML='';parsedHeaders.forEach((h,idx)=>{const sr=hasHeaderRow?parsedRawRows.slice(1,4):parsedRawRows.slice(0,3);const sv=sr.map(r=>(r[idx]||'').trim()).filter(s=>s!=='').slice(0,2).join(', ');const im=columnMapping[idx]!=='-- Skip --';const d=document.createElement('div');d.className=`mapping-col flex flex-col items-center gap-1 border rounded-lg p-2 ${im?'bg-brand-light border-brand':'bg-gray-50 border-gray-200'}`;d.innerHTML=`<span class="text-xs text-gray-500 font-semibold truncate max-w-[120px]" title="${h}">${h}</span>${sv?`<span class="text-[10px] text-gray-400 truncate max-w-[130px]" title="${sv}">${sv.length>25?sv.slice(0,25)+'...':sv}</span>`:''}<select onchange="onMappingChange(${idx},this.value)" class="border border-gray-300 rounded px-1 py-0.5 text-xs focus:ring-brand focus:border-brand w-full">${PASTE_FIELD_OPTIONS.map(o=>`<option value="${o}" ${columnMapping[idx]===o?'selected':''}>${o}</option>`).join('')}</select>`;c.appendChild(d);});document.getElementById('columnMappingSection').classList.remove('hidden');}
+
+        function onMappingChange(idx,val){const of=columnMapping[idx];columnMapping[idx]=val;if(val!=='-- Skip --'){for(let i=0;i<columnMapping.length;i++){if(i!==idx&&columnMapping[i]===val)columnMapping[i]=of!=='-- Skip --'?of:'-- Skip --';}renderColumnMapping();}parsedData=buildEntriesFromMapping();renderPreview();}
+
+        function renderPreview(){document.getElementById('previewSection').classList.remove('hidden');document.getElementById('previewCount').textContent=parsedData.length;let dc=0;parsedData.forEach(e=>{if(isDuplicateEntry(e))dc++;});if(dc>0){document.getElementById('duplicateInfo').classList.remove('hidden');document.getElementById('duplicateCount').textContent=dc;}else document.getElementById('duplicateInfo').classList.add('hidden');const th=document.getElementById('previewHead'),tb=document.getElementById('previewBody');th.innerHTML=`<tr class="text-xs uppercase text-gray-600"><th class="py-2 px-3 text-left border-b">#</th><th class="py-2 px-3 text-left border-b">Date</th><th class="py-2 px-3 text-left border-b">Name</th><th class="py-2 px-3 text-left border-b">ID No.</th><th class="py-2 px-3 text-left border-b">Destination</th><th class="py-2 px-3 text-left border-b">Purpose</th><th class="py-2 px-3 text-left border-b">From</th><th class="py-2 px-3 text-left border-b">Exiting</th><th class="py-2 px-3 text-left border-b">Entering</th><th class="py-2 px-3 text-left border-b">Status</th></tr>`;tb.innerHTML='';if(!parsedData.length){tb.innerHTML='<tr><td colspan="10" class="py-6 text-center text-gray-400">No entries detected.</td></tr>';return;}parsedData.forEach((e,i)=>{const dup=isDuplicateEntry(e);const dd=e.date?new Date(e.date+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'}):'<span class="text-red-400">Missing</span>';const tr=document.createElement('tr');tr.className=`${dup?'bg-red-50':i%2===0?'bg-white':'bg-gray-50'} border-b border-gray-100 hover:bg-yellow-50 transition`;tr.innerHTML=`<td class="py-2 px-3 text-xs text-gray-400">${i+1}</td><td class="py-2 px-3">${dd}</td><td class="py-2 px-3 font-medium">${e.name||'<span class="text-red-400">-</span>'}</td><td class="py-2 px-3">${e.idNo||'-'}</td><td class="py-2 px-3">${e.dest||'-'}</td><td class="py-2 px-3">${e.purpose||'-'}</td><td class="py-2 px-3">${e.from||'-'}</td><td class="py-2 px-3">${e.outTime?convertTo12Hour(e.outTime):'-'}</td><td class="py-2 px-3">${e.inTime?convertTo12Hour(e.inTime):'-'}</td><td class="py-2 px-3">${dup?'<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700"><i class="fas fa-copy mr-1"></i>Dup</span>':'<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700"><i class="fas fa-plus mr-1"></i>New</span>'}</td>`;tb.appendChild(tr);});}
+
+        function isDuplicateEntry(e){return movements.some(m=>(m.date||'')===(e.date||'')&&(m.name||'').toLowerCase().trim()===(e.name||'').toLowerCase().trim()&&(m.idNo||'')===(e.idNo||'')&&(m.outTime||'')===(e.outTime||''));}
+
+        function importPastedData(){if(!parsedData.length){alert('No data.');return;}const btn=document.getElementById('importBtn');btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';setTimeout(()=>{try{const ne=parsedData.filter(e=>!isDuplicateEntry(e));if(!ne.length){btn.disabled=false;btn.innerHTML='<i class="fas fa-file-import mr-2"></i>Import Now';showToast('All duplicates. Nothing imported.','error');return;}ne.forEach(e=>{e.deviceId = currentDeviceId;});ne.forEach(e=>{if(e.name && e.idNo) addSuggestion('nameIdPairs', `${e.name} (${e.idNo})`); if(e.dest)addSuggestion('destinations',e.dest);if(e.purpose)addSuggestion('purposes',e.purpose);if(e.from)addSuggestion('froms',e.from);});movements.push(...ne);commitAction();const sk=parsedData.length-ne.length;btn.disabled=false;btn.innerHTML='<i class="fas fa-file-import mr-2"></i>Import Now';closePasteImport();showToast(`Imported ${ne.length} entries!${sk>0?` (${sk} dupes skipped)`:''}`,'success');}catch(err){console.error("Import error:",err);btn.disabled=false;btn.innerHTML='<i class="fas fa-file-import mr-2"></i>Import Now';showToast('Import error: '+err.message,'error');}},50);}
+
+        // ==================== MAIN APP ====================
+        function init() {
+              if (isFirebaseConnected) {
+                  db.ref('suggestions').once('value', snap => {
+                      if (snap.val()) { const decoded = decodeFromFB(snap.val()); dynamicSuggestions = decoded; }
+                  });
+                  db.ref('deviceSuggestions/' + currentDeviceId).once('value', snap => {
+                      if (snap.val()) deviceSuggestions = decodeFromFB(snap.val());
+                  });
+                  db.ref('devicePrefs/' + currentDeviceId).once('value', snap => {
+                        if (snap.val()) applyDevicePrefs(snap.val());
+                    });
+                    db.ref('personSuggestions').once('value', snap => {
+                        if (snap.val()) personSuggestions = decodeFromFB(snap.val());
+                    });
+                    db.ref('movements').on('value', snap => {
+                      const data = snap.val();
+                      if (data && Array.isArray(data)) movements = data;
+                      else if (data && typeof data === 'object') movements = Object.values(data);
+                      else { movements = seedData; saveData('movements', movements); }
+                      pushToHistory(movements); processAndRender();
+                  });
+              } else {
+                  movements = loadData('movements', []); dynamicSuggestions = loadData('suggestions', { nameIdPairs: {}, destinations: {}, purposes: {}, froms: {} });
+                  try { const ds = localStorage.getItem('meDevSugs_' + currentDeviceId); if (ds) deviceSuggestions = JSON.parse(ds); } catch(e) {}
+                  try { const dp = localStorage.getItem('mePrefs_' + currentDeviceId); if (dp) applyDevicePrefs(JSON.parse(dp)); } catch(e) {}
+                try { const ps = localStorage.getItem('mePersonSugs'); if (ps) personSuggestions = JSON.parse(ps); } catch(e) {}
+                  if (!movements.length) { movements = seedData; saveData('movements', movements); }
+                  saveData('suggestions', dynamicSuggestions); pushToHistory(movements); processAndRender();
+              }
+
+              datePickerInstance = flatpickr("#entryDate", { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", allowInput: true, disableMobile: true });
+              datePickerInstance.setDate(new Date());
+              
+              // Set up inputs using new logic
+              setupSuggestionInput('entryName','names'); // Will use nameIdPairs internally
+              setupSuggestionInput('entryIDDisplay','ids'); 
+              setupSuggestionInput('entryDest','destinations'); 
+              setupSuggestionInput('entryPurpose','purposes'); 
+              setupSuggestionInput('entryFrom','froms');
+
+              document.getElementById('entryName').addEventListener('change',function(){const v=this.value.trim();currentPersonName=v;if(nameIdMap[v]){document.getElementById('entryID').value=nameIdMap[v];document.getElementById('entryIDDisplay').value=nameIdMap[v];}});
+                document.getElementById('entryName').addEventListener('input',function(){currentPersonName=this.value.trim();});
+              document.getElementById('entryIDDisplay').addEventListener('change',function(){const v=this.value;document.getElementById('entryID').value=v;if(idNameMap[v]){document.getElementById('entryName').value=idNameMap[v];currentPersonName=idNameMap[v];}});
+              // Strict validation: Name and ID must come from existing suggestions — no free-typing new values
+              document.getElementById('entryName').addEventListener('blur', function(){
+                  const v = this.value.trim();
+                  if(!v) return;
+                  const pairs = getMergedSuggestions('nameIdPairs');
+                  const validNames = [...new Set(pairs.map(p => { const m = p.match(/^(.+?)\s+\(/); return m ? m[1] : null; }).filter(Boolean))];
+                  if(!validNames.includes(v)){
+                      this.value = '';
+                      document.getElementById('entryID').value = '';
+                      document.getElementById('entryIDDisplay').value = '';
+                      showToast('Please select a name from the dropdown. New names must be added by admin via Manage.', 'error');
+                  }
+              });
+              document.getElementById('entryIDDisplay').addEventListener('blur', function(){
+                  const v = this.value.trim();
+                  if(!v) return;
+                  const pairs = getMergedSuggestions('nameIdPairs');
+                  const validIds = [...new Set(pairs.map(p => { const m = p.match(/^.+?\s+\(([^)]+)\)/); return m ? m[1] : null; }).filter(Boolean))];
+                  if(!validIds.includes(v)){
+                      this.value = '';
+                      document.getElementById('entryID').value = '';
+                      showToast('Please select an ID from the dropdown. New IDs must be added by admin via Manage.', 'error');
+                  }
+              });
+              document.getElementById('movementForm').addEventListener('submit', handleSubmit);
+              document.getElementById('monthFilter').addEventListener('change', renderTable);
+              document.getElementById('searchInput').addEventListener('keyup', renderTable);
+              document.addEventListener('wheel', function(e){ if(e.target.type==='number') e.target.blur(); }, {passive:true});
+              toggleAdminUI(false);ssoCheck(function(ok){if(ok){isAdmin=true;document.getElementById('adminBtn').innerHTML='<i class="fas fa-user-shield mr-2"></i>Logout';toggleAdminUI(true);}});
+
+              const shortId = currentDeviceId.slice(-8).toUpperCase();
+              const dEl = document.getElementById('deviceIdShort');
+              if (dEl) dEl.textContent = shortId;
+
+              document.getElementById('entryName').name = 'nm_' + Math.random().toString(36).slice(2);
+          }
+        function processAndRender(){let u=false;movements.forEach(m=>{if(!m._id){m._id='gen_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);u=true;}});if(u)saveData('movements',movements);populateMonthFilter();renderTable();updateCounters();}
+        
+        /* --- Default to Current Month --- */
+        function populateMonthFilter(){
+            const s=document.getElementById('monthFilter');
+            if(!s) return;
+            const cv=s.value;
+            const ms=new Set();
+
+            // 1. Add current YYYY-MM explicitly to the set so it always appears
+            const d = new Date();
+            const currentYM = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            ms.add(currentYM);
+
+            movements.forEach(m=>{
+                if(m.date){
+                    const d2=new Date(m.date);
+                    if(!isNaN(d2.getTime()))ms.add(`${d2.getFullYear()}-${String(d2.getMonth()+1).padStart(2,'0')}`);
+                }
+            });
+            const so=Array.from(ms).sort().reverse();
+            s.innerHTML='<option value="all">All Months</option>';
+            so.forEach(m=>{
+                const o=document.createElement('option');
+                o.value=m;
+                o.textContent=new Date(m+'-02').toLocaleDateString('en-US',{year:'numeric',month:'long'});
+                s.appendChild(o);
+            });
+            
+            // 2. Logic to set default value:
+            // If there's an existing valid selection, keep it.
+            // Otherwise, default to the Current Month.
+            if(cv && so.includes(cv)){
+                s.value=cv;
+            } else {
+                s.value = currentYM;
+            }
+        }
+
+        function renderTable(){
+            const mf=document.getElementById('monthFilter').value;
+            const st=document.getElementById('searchInput').value.toLowerCase();
+            const tb=document.getElementById('tableBody');
+            if(!tb) return;
+            document.getElementById('thSelectAll').classList.toggle('hidden',!isAdmin);
+            
+            let fl=movements.filter(m=>{
+                let mm=true;
+                if(mf!=='all'){
+                    const d=new Date(m.date);
+                    if(!isNaN(d.getTime()))mm=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`===mf;
+                    else mm=false;
+                }
+                
+                /* --- Search by Date (Formatted) --- */
+                let ms=true;
+                if(st){
+                    // Get formatted date (DD/MM/YYYY) to allow searching by visual date
+                    let formattedDate = '';
+                    if(m.date){
+                        const tempDate = new Date(m.date+'T00:00:00');
+                        if(!isNaN(tempDate.getTime())){
+                            formattedDate = tempDate.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'}).toLowerCase();
+                        }
+                    }
+                    
+                    // Check against all string values AND the formatted date
+                    const valuesMatch = Object.values(m).some(v => String(v).toLowerCase().includes(st));
+                    ms = valuesMatch || formattedDate.includes(st);
+                }
+                
+                return mm&&ms;
+            });
+            
+            // Sort: Newest First
+            fl.sort((a,b)=>{const dd=(b.date||'').localeCompare(a.date||'');if(dd!==0)return dd;return(b.outTime||'').localeCompare(a.outTime||'');});
+            
+            tb.innerHTML='';
+            const cc=isAdmin?11:10;
+            if(!fl.length){tb.innerHTML=`<tr><td colspan="${cc}" class="py-4 text-center text-gray-500">No entries found.</td></tr>`;return;}
+
+            /* --- Inverted Serial Number --- */
+            const totalFiltered = fl.length;
+
+            fl.forEach((m,idx)=>{
+                const tr=document.createElement('tr');
+                const isEntryOwner = m.deviceId === currentDeviceId;
+                const canEdit = isAdmin || isEntryOwner;
+                
+                const dd=m.date?new Date(m.date+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'}):'-';
+                const ie=m._id===inlineEditId;
+                
+                const serialNum = totalFiltered - idx;
+
+                if(true){
+                    const rc = m._id===editingId ? 'bg-green-50 ring-2 ring-inset ring-green-400' : (idx % 2 === 0 ? 'bg-white' : 'bg-gray-50');
+                    tr.className = `border-b border-gray-200 ${rc} hover:bg-gray-100 transition`;
+                    tr.setAttribute('data-entry-id', m._id);
+                    let ah = '';
+                    if (canEdit) {
+                        ah = `<button onclick="startEditMode('${m._id}')" class="text-blue-500 hover:text-blue-700 mr-2" title="Edit"><i class="fas fa-edit"></i></button>`;
+                    }
+                    if(isAdmin || isEntryOwner) ah += `<button onclick="deleteEntry('${m._id}',event)" class="text-red-500 hover:text-red-700" title="Delete"><i class="fas fa-trash"></i></button>`;
+                    let rh = `<td class="py-3 px-4">${serialNum}</td><td class="py-3 px-4 whitespace-nowrap">${dd}${m.longTrip && m.tripDateRange ? '<br><span class="text-xs font-semibold text-brand bg-brand-light px-1.5 py-0.5 rounded mt-0.5 inline-block">' + formatTripRange(m.tripDateRange) + '</span>' : (m.longTrip ? '<br><span class="text-xs font-semibold text-brand bg-brand-light px-1.5 py-0.5 rounded mt-0.5 inline-block">Long Trip</span>' : '')}</td><td class="py-3 px-4 font-medium">${m.name||'-'}</td><td class="py-3 px-4">${m.idNo||'-'}</td><td class="py-3 px-4">${m.dest||'-'}</td><td class="py-3 px-4">${m.purpose||'-'}</td><td class="py-3 px-4">${m.from||'-'}</td><td class="py-3 px-4">${convertTo12Hour(m.outTime)}</td><td class="py-3 px-4">${convertTo12Hour(m.inTime)}</td><td class="py-3 px-4">${ah}</td>`;
+                    if(isAdmin) rh = `<td class="py-3 px-4"><input type="checkbox" class="row-check" data-id="${m._id}"></td>` + rh;
+                    tr.innerHTML = rh;
+                    tb.appendChild(tr);
+                }
+            });
+        }
+
+        function updateCounters(){document.getElementById('totalCount').textContent=movements.length;document.getElementById('todayCount').textContent=movements.filter(m=>m.date===new Date().toISOString().slice(0,10)).length;}
+
+        function clearForm(){
+            document.getElementById('movementForm').reset();
+            const cb = document.getElementById('longTripCheck');
+            if(cb.checked){ cb.checked=false; toggleLongTrip(cb); }
+            datePickerInstance.setDate(new Date());
+        }
+
+        function toggleLongTrip(cb){
+            const lbl = document.getElementById('entryDateLabel');
+            const inp = document.getElementById('entryDate');
+            if(cb.checked){
+                lbl.textContent = 'Trip Dates';
+                inp.classList.add('border-brand','border-2','bg-brand-light','font-medium','text-brand-dark');
+                inp.classList.remove('border-gray-300');
+                inp.placeholder = 'Click to select each working day...';
+                if(datePickerInstance){ datePickerInstance.destroy(); datePickerInstance=null; }
+                datePickerInstance = flatpickr('#entryDate', {
+                    mode:'multiple', dateFormat:'Y-m-d',
+                    altInput:true, altFormat:'j M Y',
+                    conjunction:', ', allowInput:false, disableMobile:true
+                });
+            } else {
+                lbl.textContent = 'Date';
+                inp.classList.remove('border-brand','border-2','bg-brand-light','font-medium','text-brand-dark');
+                inp.classList.add('border-gray-300');
+                inp.placeholder = 'DD/MM/YYYY';
+                if(datePickerInstance){ datePickerInstance.destroy(); datePickerInstance=null; }
+                datePickerInstance = flatpickr('#entryDate', { dateFormat:'Y-m-d', altInput:true, altFormat:'d/m/Y', allowInput:true, disableMobile:true });
+                datePickerInstance.setDate(new Date());
+            }
+        }
+
+        function toggleEditLongTrip(id, cb){
+            const rangeInput = document.getElementById('edit-triprange-'+id);
+            if(!rangeInput) return;
+            if(cb.checked){ rangeInput.classList.remove('hidden'); } else { rangeInput.classList.add('hidden'); rangeInput.value=''; }
+        }
+
+        function formatTripRange(rangeStr){
+            if(!rangeStr) return '';
+            const parts = rangeStr.split(' to ');
+            if(parts.length===1){ const d=new Date(parts[0]+'T00:00:00'); if(isNaN(d.getTime())) return rangeStr; return d.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}); }
+            const d1=new Date(parts[0]+'T00:00:00'), d2=new Date(parts[1]+'T00:00:00');
+            if(isNaN(d1.getTime())||isNaN(d2.getTime())) return rangeStr;
+            if(d1.getMonth()===d2.getMonth()&&d1.getFullYear()===d2.getFullYear()){
+                return d1.getDate()+'-'+d2.getDate()+' '+d2.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+            }
+            return d1.toLocaleDateString('en-GB',{day:'numeric',month:'long'})+' - '+d2.toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+        }
+
+        function handleSubmit(e){
+            e.preventDefault();
+            if(editingId){ saveInlineEdit(editingId); return; }
+            const d=document.getElementById('entryDate').value,n=document.getElementById('entryName').value,id=document.getElementById('entryIDDisplay').value,ds=document.getElementById('entryDest').value,p=document.getElementById('entryPurpose').value,f=document.getElementById('entryFrom').value,ot=convertTo24Hour(document.getElementById('entryOutTime').value),it=convertTo24Hour(document.getElementById('entryInTime').value);
+            if(!d||!n||!id||!ds||!p){alert("Date, Name, ID No., Destination, and Purpose are required.");return;}
+            const isLongTrip=document.getElementById('longTripCheck').checked;
+            if(isLongTrip){
+                const rawDates=d.trim();
+                const selectedDates=rawDates.split(', ').map(s=>s.trim()).filter(s=>s.match(/^\d{4}-\d{2}-\d{2}$/));
+                if(!selectedDates.length){alert('Please select at least one date for the long trip.');return;}
+                selectedDates.forEach(sd=>{
+                    const tripEntry={date:sd,name:n,idNo:id,dest:ds,purpose:p,from:f,outTime:ot,inTime:it,longTrip:true,deviceId:currentDeviceId};
+                    tripEntry._id='entry_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);
+                    movements.push(tripEntry);
+                });
+            } else {
+            const entry={date:d,name:n,idNo:id,dest:ds,purpose:p,from:f,outTime:ot,inTime:it,longTrip:false,deviceId:currentDeviceId};
+            entry._id='entry_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);
+            movements.push(entry);
+            } // end else (not longTrip)
+            
+            // Save Pair Suggestion - only add bare pair if no existing pair (with or without dept) already exists
+            if(n && id) {
+                const existingPairs = getMergedSuggestions('nameIdPairs');
+                const pairAlreadyExists = existingPairs.some(k => {
+                    const pm = k.match(/^(.+?)\s+\(([^)]+)\)/);
+                    return pm && pm[1] === n && pm[2] === id;
+                });
+                if(!pairAlreadyExists) {
+                    addSuggestion('nameIdPairs', `${n} (${id})`);
+                }
+            }
+            // Save others
+            addSuggestion('destinations',ds);addSuggestion('purposes',p);addSuggestion('froms',f);
+            
+            saveDevicePrefs(n,id);
+            commitAction();
+            clearForm();
+            applyDevicePrefs({name:n,idNo:id});
+            currentPersonName=n;
+            const savedCount=isLongTrip?document.getElementById('longTripCheck').checked?0:1:1;
+            showToast(isLongTrip?`Long trip saved as individual entries!`:'Entry saved!','success');
+        }
+
+        function startEditMode(id){
+            const m=movements.find(e=>e._id===id);
+            if(!m)return;
+            editingId=id;
+            // Populate form
+            const lbl=document.getElementById('entryDateLabel');
+            const ltCb=document.getElementById('longTripCheck');
+            if(m.longTrip && ltCb && !ltCb.checked){ ltCb.checked=true; toggleLongTrip(ltCb); }
+            else if(!m.longTrip && ltCb && ltCb.checked){ ltCb.checked=false; toggleLongTrip(ltCb); }
+            if(datePickerInstance) datePickerInstance.setDate(m.date?new Date(m.date+'T00:00:00'):new Date());
+            document.getElementById('entryName').value=m.name||'';
+            document.getElementById('entryID').value=m.idNo||'';
+            document.getElementById('entryIDDisplay').value=m.idNo||'';
+            document.getElementById('entryDest').value=m.dest||'';
+            document.getElementById('entryPurpose').value=m.purpose||'';
+            document.getElementById('entryFrom').value=m.from||'';
+            document.getElementById('entryOutTime').value=formatTimeForInput(m.outTime)||'';
+            document.getElementById('entryInTime').value=formatTimeForInput(m.inTime)||'';
+            // Update UI
+            document.getElementById('formSubmitBtn').textContent='Update';
+            document.getElementById('formSubmitBtn').classList.remove('bg-brand','hover:bg-brand-dark');
+            document.getElementById('formSubmitBtn').classList.add('bg-green-600','hover:bg-green-700');
+            document.getElementById('formCancelBtn').classList.remove('hidden');
+            document.getElementById('formClearBtn').classList.add('hidden');
+            document.getElementById('formHeading').innerHTML='<i class="fas fa-edit mr-2 text-green-600"></i>Editing Entry';
+            // Store which row to scroll back to, then scroll to form
+            editScrollTargetId = id;
+            document.querySelector('.bg-white.p-6.shadow-md.mb-6').scrollIntoView({behavior:'smooth',block:'start'});
+            renderTable();
+        }
+        function cancelEditMode(){
+            editingId=null;
+            clearForm();
+            document.getElementById('formSubmitBtn').textContent='Submit';
+            document.getElementById('formSubmitBtn').classList.add('bg-brand','hover:bg-brand-dark');
+            document.getElementById('formSubmitBtn').classList.remove('bg-green-600','hover:bg-green-700');
+            document.getElementById('formCancelBtn').classList.add('hidden');
+            document.getElementById('formClearBtn').classList.remove('hidden');
+            document.getElementById('formHeading').textContent='New Movement Entry';
+            renderTable();
+            if(editScrollTargetId){ const _tid=editScrollTargetId; editScrollTargetId=null; setTimeout(()=>{ const r=document.querySelector(`tr[data-entry-id='${_tid}']`); if(r){ r.scrollIntoView({behavior:'smooth',block:'nearest'}); setTimeout(()=>{r.classList.add('row-flash');setTimeout(()=>r.classList.remove('row-flash'),10000);},400); } },80); }
+        }
+        function saveInlineEdit(id){
+            const idx=movements.findIndex(m=>m._id===id);
+            if(idx===-1)return;
+            const e=movements[idx];
+            const d=document.getElementById('entryDate').value;
+            const n=document.getElementById('entryName').value;
+            const idv=document.getElementById('entryIDDisplay').value;
+            const ds=document.getElementById('entryDest').value;
+            const p=document.getElementById('entryPurpose').value;
+            const f=document.getElementById('entryFrom').value;
+            const ot=convertTo24Hour(document.getElementById('entryOutTime').value);
+            const it=convertTo24Hour(document.getElementById('entryInTime').value);
+            if(!d||!n||!idv||!ds||!p){alert("Date, Name, ID No., Destination, and Purpose are required.");return;}
+            const isLongTrip=document.getElementById('longTripCheck').checked;
+            let entryDate=d;
+            if(isLongTrip){ const parts=d.split(', '); entryDate=parts[0]?parts[0].trim():d; }
+            e.date=entryDate; e.name=n; e.idNo=idv; e.dest=ds; e.purpose=p; e.from=f;
+            e.outTime=ot; e.inTime=it; e.longTrip=isLongTrip;
+            const _scrollId = editingId;
+            editScrollTargetId = null; // prevent cancelEditMode from double-scrolling
+            cancelEditMode();
+            commitAction();
+            showToast('Entry updated!','success');
+            setTimeout(()=>{ const r=document.querySelector(`tr[data-entry-id='${_scrollId}']`); if(r){ r.scrollIntoView({behavior:'smooth',block:'nearest'}); setTimeout(()=>{r.classList.add('row-flash');setTimeout(()=>r.classList.remove('row-flash'),10000);},400); } },200);
+        }
+
+        function deleteEntry(id,event){const _deIdx=movements.findIndex(m=>m._id===id);const _deOwner=_deIdx!==-1&&movements[_deIdx].deviceId===currentDeviceId;if(!isAdmin&&!_deOwner)return;deleteTargetId=id;isBulkDelete=false;document.getElementById('deleteMessage').textContent="Delete this entry?";positionDeleteBox(event);}
+        function promptBulkDelete(e){if(!isAdmin)return;const ch=document.querySelectorAll('.row-check:checked');if(!ch.length){alert("Select entries first.");return;}isBulkDelete=true;deleteTargetId=null;document.getElementById('deleteMessage').textContent=`Delete ${ch.length} entries?`;positionDeleteBox(e);}
+        function positionDeleteBox(event){const b=document.getElementById('deleteBox'),ml=document.getElementById('deleteModal');ml.classList.remove('hidden');document.body.style.overflow='hidden';let x=event.clientX,y=event.clientY;if(x+340>window.innerWidth)x=window.innerWidth-340;else x+=15;if(y+220>window.innerHeight)y=window.innerHeight-220;else y+=15;b.style.left=x+'px';b.style.top=y+'px';}
+        function confirmDelete(){if(isBulkDelete){const ch=document.querySelectorAll('.row-check:checked');const ids=Array.from(ch).map(c=>c.dataset.id);movements=movements.filter(m=>!ids.includes(m._id));}else if(deleteTargetId)movements=movements.filter(m=>m._id!==deleteTargetId);closeDeleteModal();commitAction();}
+        function closeDeleteModal(){document.getElementById('deleteModal').classList.add('hidden');document.body.style.overflow='';deleteTargetId=null;}
+        function toggleSelectAll(cb){document.querySelectorAll('.row-check').forEach(c=>c.checked=cb.checked);}
+
+        function checkAdmin(){if(isAdmin){isAdmin=false;ssoLogout();document.getElementById('adminBtn').innerHTML='<i class="fas fa-user-lock mr-2"></i>Admin';toggleAdminUI(false);}else{document.getElementById('adminModal').classList.remove('hidden');document.getElementById('adminPassInput').value='';document.getElementById('adminError').classList.add('hidden');document.body.style.overflow='hidden';setTimeout(()=>document.getElementById('adminPassInput').focus(),100);}}
+        function closeAdminModal(){document.getElementById('adminModal').classList.add('hidden');document.body.style.overflow='';}
+        function submitAdminLogin(){if(document.getElementById('adminPassInput').value===SUPER_USER_PASSWORD){isAdmin=true;ssoLogin();document.getElementById('adminBtn').innerHTML='<i class="fas fa-user-shield mr-2"></i>Logout';toggleAdminUI(true);closeAdminModal();}else document.getElementById('adminError').classList.remove('hidden');}
+        function handleModalEnter(e){if(e.key==='Enter')submitAdminLogin();}
+
+        function toggleAdminUI(show){const d=show?'inline-block':'none';document.getElementById('uploadPdfBtn').style.display=d;document.getElementById('downloadPdfBtn').style.display=d;document.getElementById('deleteSelectedBtn').style.display=d;document.getElementById('manageSuggestionsBtn').style.display=d;document.getElementById('pasteImportBtn').style.display=d;document.getElementById('nameAddressBtn').style.display=d;document.getElementById('serverBtn').style.display=d;renderTable();}
+
+        function generatePDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF('l','mm','a4');let tmy="All Months";const mfv=document.getElementById('monthFilter').value;if(mfv!=='all'){const d=new Date(mfv+'-02');if(!isNaN(d.getTime()))tmy=d.toLocaleDateString('en-US',{year:'numeric',month:'long'});}else{const n=new Date();tmy=n.toLocaleDateString('en-US',{year:'numeric',month:'long'});}doc.setFontSize(14);doc.setFont(undefined,'bold');var _cn=(typeof window._getCompanyName==='function')?window._getCompanyName():'YIK YUE (H.K.) COMMERCIAL LIMITED';var _ca=(typeof window._getCompanyAddress==='function')?window._getCompanyAddress():'2/F, Plaza 33, Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh';doc.text(_cn,148.5,15,{align:'center'});doc.setFontSize(10);doc.setFont(undefined,'normal');doc.text(_ca,148.5,21,{align:'center'});doc.setFontSize(12);doc.setFont(undefined,'bold');doc.text(`Movement Form- ${tmy}`,148.5,28,{align:'center'});const st=document.getElementById('searchInput').value.toLowerCase();let fl=movements.filter(m=>{let mm=true;if(mfv!=='all'){const d=new Date(m.date);if(!isNaN(d.getTime()))mm=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`===mfv;else mm=false;}let ms=true;if(st)ms=Object.values(m).some(v=>String(v).toLowerCase().includes(st));return mm&&ms;});
+            
+            // CHANGE: Sort for PDF = Oldest First (Ascending)
+            fl.sort((a,b)=>{const dd=(a.date||'').localeCompare(b.date||'');if(dd!==0)return dd;return(a.outTime||'').localeCompare(b.outTime||'');});
+            
+            const hd=[['Date','Name','ID No.','Destination','Purpose','From','EXITING','ENTERING']];const bd=fl.map(m=>[m.date?new Date(m.date+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'}):'-',m.name||'-',m.idNo||'-',m.dest||'-',m.purpose||'-',m.from||'-',convertTo12Hour(m.outTime),convertTo12Hour(m.inTime)]);doc.autoTable({head:hd,body:bd,startY:34,styles:{fontSize:9,cellPadding:2},headStyles:{fillColor:[10,64,56],textColor:255,fontStyle:'bold'},columnStyles:{0:{cellWidth:25},1:{cellWidth:35},2:{cellWidth:20},3:{cellWidth:50},4:{cellWidth:55},5:{cellWidth:20},6:{cellWidth:25},7:{cellWidth:25}}});doc.save(`Movement_Form_${tmy.replace(/\s+/g,'_')}.pdf`);}
+
+        window.onload = init;
+    </script>
+<datalist id="_no_ac_"></datalist>
+
+<script>
+/* ─── YIK YUE Shared SSO (Firebase-based, works across Google Sites iframes) ─ */
+(function(){
+var _SC={apiKey:"AIzaSyCbe-CBozEbwUMwxyxb8WVcBqXSBeSRHFw",databaseURL:"https://payment-voucher-6aa57-default-rtdb.asia-southeast1.firebasedatabase.app"};
+var _SM=12*3600*1000;
+function _fp(){try{var c=document.createElement('canvas');c.width=160;c.height=30;var x=c.getContext('2d');x.fillStyle='#4af';x.fillRect(0,0,160,30);x.fillStyle='#fff';x.font='bold 13px Arial';x.fillText('yyk-sso',4,21);return c.toDataURL().slice(-60);}catch(e){return'nc';}}
+function _h32(s){var h=2166136261>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return h.toString(16);}
+// _DID unified — using currentDeviceId
+var _DID=currentDeviceId;
+var _db=null;
+function _gdb(){if(_db)return _db;try{var a=firebase.app('yyk-sso');_db=firebase.database(a);return _db;}catch(e){}try{var a=firebase.initializeApp(_SC,'yyk-sso');_db=firebase.database(a);return _db;}catch(e2){}return null;}
+window.ssoLogin=function(){var _did=currentDeviceId;var d=_gdb();if(d)d.ref('adminSessions/'+_did).set({ts:Date.now(),did:_did});try{localStorage.setItem('yyAdminSession',JSON.stringify({did:_did,ts:Date.now()}));}catch(e){}};
+window.ssoLogout=function(){var d=_gdb();if(d)d.ref('adminSessions/'+currentDeviceId).remove();try{localStorage.removeItem('yyAdminSession');}catch(e){}};
+window.ssoCheck=function(cb){try{var _ls=localStorage.getItem('yyAdminSession');if(_ls){var _lo=JSON.parse(_ls);if(_lo&&_lo.did===currentDeviceId&&_lo.ts&&(Date.now()-_lo.ts)<_SM){cb(true);return;}}}catch(e){}var d=_gdb();if(!d){cb(false);return;}d.ref('adminSessions/'+currentDeviceId).once('value',function(s){var v=s.val();if(v&&v.ts&&(Date.now()-v.ts)<_SM&&(!v.did||v.did===currentDeviceId)){try{localStorage.setItem('yyAdminSession',JSON.stringify({did:currentDeviceId,ts:Date.now()}));}catch(e){}cb(true);}else{if(v)d.ref('adminSessions/'+currentDeviceId).remove();try{localStorage.removeItem('yyAdminSession');}catch(e){}cb(false);}});};
+})();
+
+/* ===== YIK YUE – Name & Address + Server Settings ===== */
+(function(){
+    /* Toast wrapper: works with showToast (most apps) or toast (Attendance) */
+    function _yyToast(msg, type){
+        if(typeof showToast==='function') showToast(msg, type);
+        else if(typeof toast==='function') toast(msg, type);
+        else alert(msg);
+    }
+
+    var DEFAULT_COMPANY_NAME='YIK YUE (H.K.) COMMERCIAL LIMITED';
+    var DEFAULT_COMPANY_ADDRESS='2/F, Plaza 33, Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh';
+    var companyName=DEFAULT_COMPANY_NAME;
+    var companyAddress=DEFAULT_COMPANY_ADDRESS;
+    var prevCompanyName='',prevCompanyAddress='';
+    try{var _cn=localStorage.getItem('companyName_yy');if(_cn)companyName=_cn;var _ca=localStorage.getItem('companyAddress_yy');if(_ca)companyAddress=_ca;var _pn=sessionStorage.getItem('prevCompanyName_yy');if(_pn)prevCompanyName=_pn;var _pa=sessionStorage.getItem('prevCompanyAddress_yy');if(_pa)prevCompanyAddress=_pa;}catch(e){}
+
+    function updateHeaderDisplay(){
+        var hn=document.getElementById('headerCompanyName');
+        var ha=document.getElementById('headerCompanyAddress');
+        if(hn)hn.textContent=companyName;
+        if(ha)ha.textContent=companyAddress;
+    }
+
+    window._getCompanyName=function(){return companyName;};window._getCompanyAddress=function(){return companyAddress;};window.openNameAddressModal=function(){
+        document.getElementById('naNameInput').value=companyName;
+        document.getElementById('naAddressInput').value=companyAddress;
+        var pi=document.getElementById('naPrevInfo'),rb=document.getElementById('naRestoreBtn');
+        var hasPrev=!!(prevCompanyName||prevCompanyAddress);
+        if(hasPrev){
+            document.getElementById('naPrevName').textContent='Name: '+(prevCompanyName||'—');
+            document.getElementById('naPrevAddr').textContent='Addr: '+(prevCompanyAddress||'—');
+            pi.classList.remove('hidden');
+        }else{pi.classList.add('hidden');}
+        rb.disabled=!hasPrev;
+        document.getElementById('nameAddressModal').classList.remove('hidden');
+        document.body.style.overflow='hidden';
+        setTimeout(function(){document.getElementById('naNameInput').focus();},100);
+    };
+    window.closeNameAddressModal=function(){
+        document.getElementById('nameAddressModal').classList.add('hidden');
+        document.body.style.overflow='';
+    };
+    window.saveNameAddress=function(){
+        var nn=document.getElementById('naNameInput').value.trim();
+        var na=document.getElementById('naAddressInput').value.trim();
+        if(!nn){_yyToast('Company name cannot be empty','error');return;}
+        prevCompanyName=companyName;prevCompanyAddress=companyAddress;
+        companyName=nn;companyAddress=na;
+        try{localStorage.setItem('companyName_yy',companyName);localStorage.setItem('companyAddress_yy',companyAddress);sessionStorage.setItem('prevCompanyName_yy',prevCompanyName);sessionStorage.setItem('prevCompanyAddress_yy',prevCompanyAddress);}catch(e){}
+        updateHeaderDisplay();closeNameAddressModal();_yyToast('Name & Address updated!','success');
+    };
+    window.restoreNameAddress=function(){
+        if(!prevCompanyName&&!prevCompanyAddress){_yyToast('No previous version to restore','error');return;}
+        companyName=prevCompanyName;companyAddress=prevCompanyAddress;
+        prevCompanyName='';prevCompanyAddress='';
+        try{localStorage.setItem('companyName_yy',companyName);localStorage.setItem('companyAddress_yy',companyAddress);sessionStorage.removeItem('prevCompanyName_yy');sessionStorage.removeItem('prevCompanyAddress_yy');}catch(e){}
+        updateHeaderDisplay();closeNameAddressModal();_yyToast('Restored to previous version!','success');
+    };
+
+    function cfgToJsString(cfg){
+        if(!cfg||typeof cfg!=='object')return'{}';
+        var keys=Object.keys(cfg);
+        var lines=['const firebaseConfig = {'];
+        keys.forEach(function(k,i){lines.push('  '+k+': "'+cfg[k]+'"'+(i<keys.length-1?',':''));});
+        lines.push('};');
+        return lines.join('\n');
+    }
+    window.openServerModal=function(){
+        document.getElementById('srv_configJson').value=cfgToJsString(firebaseConfig);
+        var hasPrev=!!sessionStorage.getItem('prevServerConfig_yy');
+        document.getElementById('srvPrevInfo').classList.toggle('hidden',!hasPrev);
+        document.getElementById('srvRestoreBtn').disabled=!hasPrev;
+        document.getElementById('serverModal').classList.remove('hidden');
+        document.body.style.overflow='hidden';
+    };
+    window.closeServerModal=function(){
+        document.getElementById('serverModal').classList.add('hidden');
+        document.body.style.overflow='';
+    };
+    function parseServerConfigInput(raw){
+        var s=raw.trim().replace(/^\s*(?:const|var|let)\s+\w+\s*=\s*/,'').replace(/;\s*$/,'').trim();
+        s=s.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g,'$1"$2":');
+        return JSON.parse(s);
+    }
+    window.saveServerConfig=function(){
+        var raw=document.getElementById('srv_configJson').value.trim();
+        var newCfg;
+        try{newCfg=parseServerConfigInput(raw);}catch(e){_yyToast('Invalid config — check the format','error');return;}
+        if(typeof newCfg!=='object'||Array.isArray(newCfg)){_yyToast('Config must be an object','error');return;}
+        if(!newCfg.apiKey||!newCfg.databaseURL){_yyToast('apiKey and databaseURL are required','error');return;}
+        var cur=localStorage.getItem('serverConfig_yy');
+        sessionStorage.setItem('prevServerConfig_yy',cur||JSON.stringify(DEFAULT_SERVER_CONFIG));
+        localStorage.setItem('serverConfig_yy',JSON.stringify(newCfg));
+        closeServerModal();_yyToast('Server config saved! Reloading...','success');
+        setTimeout(function(){window.location.reload();},1200);
+    };
+    window.restoreServerConfig=function(){
+        var prev=sessionStorage.getItem('prevServerConfig_yy');
+        if(!prev){_yyToast('No previous config to restore','error');return;}
+        localStorage.setItem('serverConfig_yy',prev);
+        sessionStorage.removeItem('prevServerConfig_yy');
+        closeServerModal();_yyToast('Previous config restored! Reloading...','success');
+        setTimeout(function(){window.location.reload();},1200);
+    };
+
+    document.addEventListener('DOMContentLoaded',function(){updateHeaderDisplay();});
+})();
+
+</script>
+
+<!-- ===== Name & Address Modal ===== -->
+<div id="nameAddressModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[9999] flex justify-center items-center p-4" onclick="if(event.target===this)closeNameAddressModal()">
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg" onclick="event.stopPropagation()">
+        <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+            <h3 class="text-lg font-bold"><i class="fas fa-building mr-2"></i>Name &amp; Address</h3>
+            <button onclick="closeNameAddressModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6">
+            <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Company Name</label>
+                <input type="text" id="naNameInput" class="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Company Name">
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Address</label>
+                <textarea id="naAddressInput" rows="3" class="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" placeholder="Full Address"></textarea>
+            </div>
+            <div id="naPrevInfo" class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 hidden">
+                <p class="font-semibold text-gray-600 mb-1"><i class="fas fa-history mr-1"></i>Previous Version:</p>
+                <p id="naPrevName" class="truncate"></p>
+                <p id="naPrevAddr" class="truncate"></p>
+            </div>
+            <div class="flex justify-between items-center gap-2 flex-wrap">
+                <button id="naRestoreBtn" onclick="restoreNameAddress()" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium text-sm"><i class="fas fa-undo mr-1"></i>Restore Previous</button>
+                <div class="flex gap-2 ml-auto">
+                    <button onclick="closeNameAddressModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button>
+                    <button onclick="saveNameAddress()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm"><i class="fas fa-save mr-1"></i>Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Server Settings Modal ===== -->
+<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[9999] flex justify-center items-center p-4" onclick="if(event.target===this)closeServerModal()">
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-xl" onclick="event.stopPropagation()">
+        <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+            <h3 class="text-lg font-bold"><i class="fas fa-server mr-2"></i>Server Settings</h3>
+            <button onclick="closeServerModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6">
+            <p class="text-xs text-gray-500 mb-4 bg-yellow-50 border border-yellow-200 rounded p-2"><i class="fas fa-info-circle mr-1 text-yellow-600"></i>Changes take effect after saving and reloading the page.</p>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Firebase Config (JSON)</label>
+                <textarea id="srv_configJson" rows="10" spellcheck="false" class="w-full border border-gray-300 rounded p-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
+            </div>
+            <div id="srvPrevInfo" class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 hidden">
+                <p class="font-semibold text-gray-600 mb-1"><i class="fas fa-history mr-1"></i>Previous version saved — restore available.</p>
+            </div>
+            <div class="flex justify-between items-center gap-2 mt-4 flex-wrap">
+                <button id="srvRestoreBtn" onclick="restoreServerConfig()" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium text-sm"><i class="fas fa-undo mr-1"></i>Restore Previous</button>
+                <div class="flex gap-2 ml-auto">
+                    <button onclick="closeServerModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button>
+                    <button onclick="saveServerConfig()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm"><i class="fas fa-save mr-1"></i>Save &amp; Reload</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
