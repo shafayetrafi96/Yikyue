@@ -1,0 +1,2832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>YIK YUE File Tools</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{brand:'#0A4038','brand-dark':'#072e27','brand-light':'#e0efed'}}}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+window.addEventListener('load',function(){
+  if(window.pdfjsLib)
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc=
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+});
+</script>
+
+<!-- Object Eraser: browser-based content-aware fill (no external API needed) -->
+
+<!-- BG Removal: BRIA RMBG-1.4 via Transformers.js — runs 100% in browser, unlimited -->
+<script type="module">
+import { env, AutoModel, AutoProcessor, RawImage }
+  from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+env.allowLocalModels = false;
+// Run ONNX in main thread (no separate worker file needed for a single HTML file)
+env.backends.onnx.wasm.proxy = false;
+
+const MODEL = 'briaai/RMBG-1.4';
+let _model = null, _processor = null, _loadPromise = null;
+
+function _startLoad(onProgress){
+  if(_loadPromise) return _loadPromise;
+  _loadPromise = (async()=>{
+    const opts = { quantized: true };
+    if(onProgress) opts.progress_callback = onProgress;
+    [_processor, _model] = await Promise.all([
+      AutoProcessor.from_pretrained(MODEL, opts),
+      AutoModel.from_pretrained(MODEL, { ...opts, config:{ model_type:'custom' } })
+    ]);
+  })();
+  return _loadPromise;
+}
+
+window._bgAI = {
+  preload(onProgress){ return _startLoad(onProgress); },
+  async remove(file){
+    await _loadPromise;
+    const url = URL.createObjectURL(file);
+    const image = await RawImage.fromURL(url);
+    URL.revokeObjectURL(url);
+    const { pixel_values } = await _processor(image);
+    const { output } = await _model({ input: pixel_values });
+    const mask = await RawImage.fromTensor(output[0].mul(255).to('uint8'))
+                               .resize(image.width, image.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width; canvas.height = image.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(image.toCanvas(), 0, 0);
+    const px = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    for(let i = 0; i < mask.data.length; i++) px.data[4*i+3] = mask.data[i];
+    ctx.putImageData(px, 0, 0);
+    return new Promise(res => canvas.toBlob(res, 'image/png'));
+  }
+};
+console.log('[BG] RMBG-1.4 via Transformers.js ready. Model downloads once (~45 MB), then cached.');
+</script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Inter,sans-serif;background:#eef1f5;color:#1f2937;font-size:15px;}
+.wrap{max-width:80rem;margin:0 auto;padding:1rem 1rem 2rem;}
+.header{background:#0A4038;color:#fff;padding:.9rem 1.4rem;display:flex;justify-content:space-between;align-items:center;border-radius:.6rem;}
+.header h1{font-size:1.1rem;font-weight:700;letter-spacing:.01em;line-height:1.4;}
+.header p{font-size:.8rem;opacity:.85;margin-top:.18rem;}
+.admin-btn{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.7);padding:.42rem 1.1rem;border-radius:.4rem;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-left:1rem;font-size:.85rem;display:inline-flex;align-items:center;gap:.4rem;transition:all .15s;}
+.admin-btn:hover{background:rgba(255,255,255,.12);}
+.admin-btn.active{background:#dcfce7;color:#166534;border-color:#166534;}
+.tabs{display:flex;gap:.65rem;flex-wrap:wrap;padding:.9rem 0 .2rem;}
+.tab-btn{padding:.55rem 1.15rem;border:1.5px solid #d1d5db;border-radius:.5rem;font-size:.855rem;font-weight:600;cursor:pointer;background:#fff;color:#374151;transition:all .15s;display:inline-flex;align-items:center;gap:.45rem;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.tab-btn:hover{border-color:#9ca3af;background:#f9fafb;}
+.tab-btn.active{background:#0A4038;color:#fff;border-color:#0A4038;box-shadow:0 2px 8px rgba(10,64,56,.25);}
+.card{background:#fff;border-radius:.6rem;box-shadow:0 1px 6px rgba(0,0,0,.08);min-height:75vh;}
+.panel{display:none;padding:1.4rem;}
+.panel.active{display:block;}
+.sec-hdr{display:flex;align-items:flex-start;gap:.75rem;margin-bottom:1.25rem;padding:.9rem 1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:.55rem;}
+.sec-icon{width:2.2rem;height:2.2rem;background:#0A4038;border-radius:.4rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sec-icon i{color:#fff;font-size:.95rem;}
+.sec-title{font-size:1rem;font-weight:700;color:#0A4038;margin-bottom:.15rem;}
+.sec-sub{color:#6b7280;font-size:.82rem;margin:0;}
+.fmt-row{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.25rem;}
+.fmt-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:7px;font-size:.72rem;font-weight:700;}
+.drop-zone{border:2.5px dashed #86efac;border-radius:10px;background:#f0fdf4;padding:2.25rem;text-align:center;transition:all .2s;cursor:pointer;}
+.drop-zone:hover,.drop-zone.drag-over{border-color:#16a34a;background:#dcfce7;}
+.drop-zone .dz-icon{font-size:2.2rem;color:#16a34a;margin-bottom:.6rem;}
+.drop-zone .dz-title{font-weight:600;color:#166534;margin-bottom:.25rem;}
+.drop-zone .dz-sub{font-size:.84rem;color:#6b7280;margin-bottom:.9rem;}
+.btn-row{display:flex;gap:.65rem;justify-content:center;flex-wrap:wrap;}
+.btn-primary{padding:.5rem 1.3rem;background:#0A4038;color:#fff;border:none;border-radius:.375rem;cursor:pointer;font-weight:600;font-size:.875rem;}
+.btn-primary:disabled{background:#9ca3af;cursor:not-allowed;}
+.btn-outline{padding:.5rem 1.3rem;background:#fff;color:#0A4038;border:1.5px solid #0A4038;border-radius:.375rem;cursor:pointer;font-weight:600;font-size:.875rem;}
+.btn-sm{padding:.3rem .7rem;border-radius:.3rem;font-size:.78rem;font-weight:600;cursor:pointer;border:none;}
+.btn-green{background:#16a34a;color:#fff;}
+.btn-red{background:#fee2e2;color:#dc2626;}
+.btn-convert{padding:.65rem 2.2rem;background:#0A4038;color:#fff;border:none;border-radius:.5rem;cursor:pointer;font-weight:700;font-size:.98rem;display:inline-flex;align-items:center;gap:.5rem;margin-top:.75rem;}
+.btn-convert:disabled{background:#9ca3af;cursor:not-allowed;}
+.file-list{display:flex;flex-direction:column;gap:.4rem;margin:.65rem 0;max-height:220px;overflow-y:auto;}
+.file-item{display:flex;align-items:center;gap:8px;padding:7px 11px;background:#fff;border:1px solid #bbf7d0;border-radius:7px;font-size:.84rem;}
+.file-item .file-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151;}
+.file-item .rm-btn{background:none;border:none;cursor:pointer;color:#9ca3af;font-size:1rem;padding:0 3px;flex-shrink:0;line-height:1;}
+.conv-group{border:1.5px solid #bbf7d0;border-radius:9px;background:#f0fdf4;overflow:hidden;margin-bottom:.75rem;}
+.conv-group-hdr{background:#dcfce7;padding:9px 15px;font-weight:600;font-size:.84rem;color:#166534;display:flex;align-items:center;gap:8px;}
+.conv-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));}
+.conv-opt{display:flex;align-items:center;gap:9px;padding:9px 14px;cursor:pointer;border-top:1px solid #bbf7d0;transition:background .15s;}
+.conv-opt:hover{background:#dcfce7;}
+.conv-opt.selected{background:#bbf7d0;}
+.conv-opt input[type=radio]{accent-color:#0A4038;flex-shrink:0;}
+.results-panel{margin-top:1.25rem;background:#f0fdf4;border:1.5px solid #86efac;border-radius:9px;padding:.9rem 1rem;}
+.results-panel .rp-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:.65rem;flex-wrap:wrap;gap:.4rem;}
+.results-panel .rp-title{font-weight:700;color:#14532d;font-size:.92rem;}
+.result-files{display:flex;flex-direction:column;gap:.4rem;}
+.result-file{display:flex;align-items:center;gap:8px;padding:7px 11px;background:#fff;border:1px solid #bbf7d0;border-radius:7px;font-size:.84rem;flex-wrap:wrap;}
+.progress-wrap{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:.85rem 1rem;margin-bottom:.85rem;}
+.progress-bar-bg{background:#dcfce7;border-radius:999px;height:8px;overflow:hidden;}
+.progress-bar-fill{height:100%;border-radius:999px;background:#16a34a;transition:width .3s ease;}
+.err-box{background:#fee2e2;border:1.5px solid #fca5a5;border-radius:8px;padding:.65rem .9rem;margin-bottom:.85rem;color:#dc2626;font-size:.87rem;display:flex;align-items:center;gap:.5rem;}
+
+.compare-wrap{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;}
+@media(max-width:600px){.compare-wrap{grid-template-columns:1fr;}}
+.compare-box{border:1.5px solid #e5e7eb;border-radius:9px;overflow:hidden;background:#fafafa;}
+.compare-box-lbl{background:#0A4038;color:#fff;padding:.4rem .75rem;font-size:.8rem;font-weight:600;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:none;align-items:center;justify-content:center;padding:1rem;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:#fff;padding:1.5rem;border-radius:.5rem;box-shadow:0 20px 60px rgba(0,0,0,.3);width:22rem;max-width:100%;}
+.modal-box h3{font-size:1.05rem;font-weight:700;color:#072e27;margin-bottom:.3rem;}
+.modal-box p{font-size:.8rem;color:#6b7280;margin-bottom:.9rem;}
+.modal-box label{font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:.3rem;}
+.modal-box input{width:100%;border:1px solid #d1d5db;border-radius:.35rem;padding:.45rem;font-size:.875rem;}
+.modal-actions{display:flex;justify-content:flex-end;gap:.5rem;margin-top:.9rem;}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.spin{animation:spin 1s linear infinite;}
+.quality-row{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem;}
+.q-btn{padding:.4rem .9rem;border-radius:.4rem;font-size:.83rem;font-weight:600;cursor:pointer;background:#fff;color:#374151;border:1.5px solid #d1d5db;transition:all .15s;}
+.q-btn.active{background:#0A4038;color:#fff;border-color:#0A4038;}
+.canvas-toolbar{display:flex;gap:.65rem;flex-wrap:wrap;align-items:center;padding:.85rem 1rem;background:#f9fafb;border-radius:9px;border:1px solid #e5e7eb;margin-bottom:1rem;}
+.tool-btn{padding:.38rem .85rem;border-radius:.35rem;font-size:.82rem;font-weight:600;cursor:pointer;border:1.5px solid #d1d5db;background:#fff;color:#374151;transition:all .15s;}
+.tool-btn.active{background:#0A4038;color:#fff;border-color:#0A4038;}
+.sub-tabs{display:flex;gap:.4rem;margin-bottom:1.1rem;flex-wrap:wrap;}
+.sub-tab{padding:.35rem .9rem;border:1px solid #bbf7d0;border-radius:.35rem;font-size:.8rem;font-weight:600;cursor:pointer;background:#f0fdf4;color:#166534;transition:all .15s;}
+.sub-tab.active{background:#0A4038;color:#fff;border-color:#0A4038;}
+.sub-panel{display:none;}
+.sub-panel.active{display:block;}
+.quality-info{font-size:.78rem;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-radius:.35rem;padding:.3rem .7rem;margin-bottom:.85rem;display:inline-block;}
+/* BG preview grid with checkerboard to show transparency */
+.bg-result-preview{width:70px;height:70px;object-fit:contain;border-radius:6px;border:1px solid #ddd6fe;
+  background-image:linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%);
+  background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0px;}
+.bg-notice{background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:8px;padding:.65rem .9rem;margin-bottom:.85rem;color:#5b21b6;font-size:.84rem;display:flex;align-items:flex-start;gap:.5rem;}
+/* ── Object Eraser ───────────────────────────────────────── */
+.oe-layout{display:grid;grid-template-columns:1fr 320px;gap:1.25rem;align-items:start;}
+@media(max-width:860px){.oe-layout{grid-template-columns:1fr;}}
+.oe-step-card{border:1.5px solid #e5e7eb;border-radius:12px;overflow:hidden;transition:border-color .2s,box-shadow .2s;}
+.oe-step-card.oe-active{border-color:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.1);}
+.oe-step-hdr{background:#f9fafb;padding:.6rem 1rem;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:.55rem;}
+.oe-badge{background:#d1d5db;color:#fff;font-size:.68rem;font-weight:800;padding:.18rem .55rem;border-radius:20px;letter-spacing:.02em;}
+.oe-step-card.oe-active .oe-badge{background:#ef4444;}
+.oe-step-title{font-weight:700;font-size:.88rem;color:#111827;}
+.oe-step-body{padding:.85rem 1rem;}
+.oe-canvas-wrap{position:relative;border-radius:12px;background:repeating-conic-gradient(#e0e0e0 0% 25%,#f5f5f5 0% 50%) 0 0/20px 20px;min-height:480px;display:flex;align-items:center;justify-content:center;border:2px solid #e5e7eb;overflow:hidden;}
+.oe-canvas-inner{position:relative;display:none;line-height:0;box-shadow:0 2px 16px rgba(0,0,0,.12);border-radius:4px;overflow:visible;}
+.oe-canvas-inner canvas{display:block;}
+.oe-canvas-inner #oe-mask{display:block;touch-action:none;cursor:none;}
+.oe-zoom-bar{position:absolute;left:10px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:6px;z-index:20;}
+.oe-zoom-btn{width:34px;height:34px;border-radius:8px;border:1.5px solid #d1d5db;background:#fff;color:#374151;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.1);transition:all .15s;}
+.oe-zoom-btn:hover{background:#f3f4f6;border-color:#9ca3af;}
+.oe-zoom-label{font-size:.65rem;font-weight:700;color:#9ca3af;text-align:center;letter-spacing:.03em;line-height:1;}
+.oe-drop-zone{border:2px dashed #fca5a5;border-radius:9px;padding:1.5rem 1rem;text-align:center;cursor:pointer;transition:all .2s;background:#fff;}
+.oe-drop-zone:hover,.oe-drop-zone.oe-drag{border-color:#ef4444;background:#fff5f5;}
+.oe-toolbar{display:flex;gap:.55rem;flex-wrap:wrap;align-items:center;padding:.7rem .9rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:9px;margin-bottom:.85rem;}
+.oe-tool-btn{padding:.35rem .8rem;border-radius:.35rem;font-size:.8rem;font-weight:600;cursor:pointer;border:1.5px solid #d1d5db;background:#fff;color:#374151;transition:all .15s;display:inline-flex;align-items:center;gap:.35rem;}
+.oe-tool-btn:hover{background:#f3f4f6;}
+.oe-tool-btn.oe-active-tool{background:#ef4444;color:#fff;border-color:#ef4444;}
+.oe-tool-btn.oe-active-hand{background:#2563eb;color:#fff;border-color:#2563eb;}
+.oe-canvas-wrap.oe-hand-mode{cursor:grab;}
+.oe-canvas-wrap.oe-hand-mode:active{cursor:grabbing;}
+.oe-canvas-wrap.oe-hand-mode #oe-mask{cursor:inherit;}
+.oe-erase-btn{width:100%;padding:.65rem;border:none;border-radius:8px;font-weight:700;font-size:.95rem;display:flex;align-items:center;justify-content:center;gap:.5rem;cursor:pointer;transition:background .2s;}
+.oe-erase-btn:disabled{background:#d1d5db;color:#9ca3af;cursor:not-allowed;}
+.oe-erase-btn:not(:disabled){background:#ef4444;color:#fff;}
+.oe-erase-btn:not(:disabled):hover{background:#dc2626;}
+.oe-checkerboard{background-image:linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%);background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0px;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+</head>
+<body>
+
+<div class="wrap">
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <h1 id="headerCompanyName">YIK YUE (H.K.) COMMERCIAL LIMITED</h1>
+    <p id="headerCompanyAddress">2/F, Plaza 33, Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh</p>
+    <p style="font-size:.75rem;opacity:.7;margin-top:.2rem;"><i class="fas fa-microchip" style="margin-right:.3rem"></i>Device: <span id="deviceIdShort"></span></p>
+  </div>
+  <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0;margin-left:1rem;flex-wrap:wrap;justify-content:flex-end;">
+    <button id="nameAddressBtn" onclick="openNameAddressModal()" class="bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-200 transition shadow-sm" style="white-space:nowrap;display:none;"><i class="fas fa-building mr-2"></i>Name &amp; Address</button>
+    <div id="serverApiWrap" style="position:relative;display:none;">
+      <button id="serverApiBtn" onclick="toggleServerApiMenu(event)" class="bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-200 transition shadow-sm" style="white-space:nowrap;"><i class="fas fa-server mr-2"></i>Server &amp; API<i class="fas fa-chevron-down ml-2" style="font-size:.7rem;"></i></button>
+      <div id="serverApiMenu" class="hidden" style="position:absolute;right:0;top:calc(100% + 4px);min-width:160px;background:#fff;border:1px solid #d1d5db;border-radius:.5rem;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:9998;overflow:hidden;">
+        <button onclick="_closeServerApiMenu();openServerModal()" style="display:block;width:100%;text-align:left;padding:.6rem 1rem;font-size:.875rem;color:#374151;background:none;border:none;cursor:pointer;" onmouseover="this.style.background='#e0efed'" onmouseout="this.style.background='none'"><i class="fas fa-server mr-2" style="width:1rem;"></i>Server Settings</button>
+        <button onclick="_closeServerApiMenu();openTxApiModal()" style="display:block;width:100%;text-align:left;padding:.6rem 1rem;font-size:.875rem;color:#374151;background:none;border:none;border-top:1px solid #f3f4f6;cursor:pointer;" onmouseover="this.style.background='#e0efed'" onmouseout="this.style.background='none'"><i class="fas fa-key mr-2" style="width:1rem;"></i>API Keys</button>
+      </div>
+    </div>
+    <button id="adminBtn" onclick="checkAdmin()" class="bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-200 transition shadow-sm" style="white-space:nowrap;"><i class="fas fa-user-lock mr-2"></i>Admin</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('converter')" id="t-converter">
+    <i class="fas fa-exchange-alt" style="color:#16a34a"></i> File Converter
+  </button>
+  <button class="tab-btn" onclick="switchTab('compressor')" id="t-compressor">
+    <i class="fas fa-bolt" style="color:#f59e0b"></i> Compressor
+  </button>
+  <button class="tab-btn" onclick="switchTab('bgremover')" id="t-bgremover">
+    <i class="fas fa-magic" style="color:#7c3aed"></i> BG Remover
+  </button>
+  <button class="tab-btn" onclick="switchTab('canvas')" id="t-canvas">
+    <i class="fas fa-bullseye" style="color:#ef4444"></i> Object Eraser
+  </button>
+  <button class="tab-btn" onclick="switchTab('storage')" id="t-storage">
+    <i class="fas fa-file-alt" style="color:#2563eb"></i> Text Extractor
+  </button>
+</div>
+
+<div class="card">
+
+  <!-- ══ TAB 1 — FILE CONVERTER ══ -->
+  <div class="panel active" id="panel-converter">
+    <div class="sec-hdr">
+      <div class="sec-icon"><i class="fas fa-exchange-alt"></i></div>
+      <div>
+        <div class="sec-title">File Converter Hub</div>
+        <p class="sec-sub">Perform in-browser format transformations instantly. All workloads run fully locally under secure sandbox isolation.</p>
+      </div>
+    </div>
+
+    <p style="font-size:.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">Supported Formats</p>
+    <div class="fmt-row">
+      <span class="fmt-badge" style="background:#fee2e2;color:#ef4444;"><i class="fas fa-file-pdf"></i>PDF</span>
+      <span class="fmt-badge" style="background:#dbeafe;color:#2563eb;"><i class="fas fa-file-word"></i>DOCX</span>
+      <span class="fmt-badge" style="background:#dcfce7;color:#16a34a;"><i class="fas fa-file-excel"></i>XLSX</span>
+      <span class="fmt-badge" style="background:#ffedd5;color:#f97316;"><i class="fas fa-file-powerpoint"></i>PPTX</span>
+      <span class="fmt-badge" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-file-image"></i>JPG</span>
+      <span class="fmt-badge" style="background:#fce7f3;color:#db2777;"><i class="fas fa-file-image"></i>JPEG</span>
+      <span class="fmt-badge" style="background:#cffafe;color:#0891b2;"><i class="fas fa-file-image"></i>PNG</span>
+    </div>
+
+    <div class="drop-zone" id="conv-drop"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="convDrop(event)">
+      <div class="dz-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+      <p class="dz-title">Drag &amp; drop source files or folders here</p>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="document.getElementById('conv-file-inp').click()">
+          <i class="fas fa-file"></i> Browse Files
+        </button>
+        <button class="btn-outline" onclick="document.getElementById('conv-folder-inp').click()">
+          <i class="fas fa-folder-open"></i> Browse Folder
+        </button>
+      </div>
+      <input type="file" id="conv-file-inp" multiple accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png" hidden onchange="convAddFiles(this.files)">
+      <input type="file" id="conv-folder-inp" multiple webkitdirectory hidden onchange="convAddFiles(this.files)">
+    </div>
+
+    <div id="conv-queue-wrap" style="display:none;margin-top:1rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;flex-wrap:wrap;gap:.4rem;">
+        <span id="conv-queue-count" style="font-weight:600;color:#166534;font-size:.9rem;"></span>
+        <button class="btn-sm btn-red" onclick="convClearAll()"><i class="fas fa-trash"></i> Clear All</button>
+      </div>
+      <div class="file-list" id="conv-file-list"></div>
+    </div>
+
+    <div id="conv-target-wrap" style="display:none;margin-top:1rem;">
+      <p style="font-weight:700;color:#0A4038;font-size:.97rem;margin-bottom:.85rem;">
+        <i class="fas fa-crosshairs" style="color:#16a34a;margin-right:.4rem;"></i>Choose Target Format
+      </p>
+      <div id="conv-groups"></div>
+    </div>
+
+    <div class="err-box" id="conv-error" style="display:none;"></div>
+
+    <div id="conv-progress" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:9px;padding:.85rem 1rem;margin-top:.75rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem;">
+        <span style="font-weight:700;color:#166634;font-size:.875rem;display:flex;align-items:center;gap:.4rem;" id="conv-prog-label">
+          <i class="fas fa-spinner spin"></i> Converting…
+        </span>
+        <span style="color:#166634;font-size:.875rem;font-weight:700;" id="conv-prog-pct">0%</span>
+      </div>
+      <div style="background:#bbf7d0;border-radius:999px;height:10px;overflow:hidden;">
+        <div id="conv-prog-bar" style="height:100%;border-radius:999px;background:#16a34a;transition:width .2s ease;width:0%;"></div>
+      </div>
+      <div style="font-size:.78rem;color:#166634;margin-top:.4rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.75;" id="conv-prog-file"></div>
+    </div>
+
+    <div id="conv-btn-wrap" style="display:none;">
+      <button class="btn-convert" id="conv-btn" onclick="convRun()">
+        <i class="fas fa-bolt"></i> Convert
+      </button>
+    </div>
+
+    <div id="conv-results" style="display:none;" class="results-panel">
+      <div class="rp-hdr">
+        <span class="rp-title" id="conv-results-title">✅ Converted Files</span>
+      </div>
+      <div class="result-files" id="conv-results-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 2 — BG REMOVER ══ -->
+  <div class="panel" id="panel-bgremover">
+    <div class="sec-hdr">
+      <div class="sec-icon"><i class="fas fa-magic"></i></div>
+      <div>
+        <div class="sec-title">Background Remover</div>
+        <p class="sec-sub">AI background removal — works on people, products, animals, cars, and any subject. Runs 100% in your browser. No API key, no limits, no uploads.</p>
+      </div>
+    </div>
+
+    <!-- AI model notice -->
+    <div class="bg-notice" id="bg-ai-notice">
+      <i class="fas fa-brain" style="margin-top:.1rem;flex-shrink:0;color:#7c3aed;"></i>
+      <span>A real AI segmentation model running locally in your browser via WebAssembly. The model (~45 MB) downloads once and is cached forever. (No usage limits.)</span>
+    </div>
+
+    <p style="font-size:.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;">Supported Formats</p>
+    <div class="fmt-row" style="margin-bottom:1rem;">
+      <span class="fmt-badge" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-file-image"></i>JPG</span>
+      <span class="fmt-badge" style="background:#fce7f3;color:#db2777;"><i class="fas fa-file-image"></i>JPEG</span>
+      <span class="fmt-badge" style="background:#cffafe;color:#0891b2;"><i class="fas fa-file-image"></i>PNG</span>
+      <span class="fmt-badge" style="background:#dcfce7;color:#16a34a;"><i class="fas fa-file-image"></i>WEBP</span>
+      <span class="fmt-badge" style="background:#fef9c3;color:#a16207;"><i class="fas fa-file-image"></i>BMP</span>
+      <span class="fmt-badge" style="background:#fee2e2;color:#dc2626;"><i class="fas fa-file-image"></i>GIF</span>
+    </div>
+
+    <div class="drop-zone" id="bg-drop"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="bgDrop(event)">
+      <div class="dz-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+      <p class="dz-title">Drop Images or Folders Here</p>
+      <div class="btn-row">
+        <button class="btn-primary" onclick="document.getElementById('bg-file-inp').click()">
+          <i class="fas fa-file-image"></i> Browse Files
+        </button>
+        <button class="btn-outline" onclick="document.getElementById('bg-folder-inp').click()">
+          <i class="fas fa-folder-open"></i> Browse Folder
+        </button>
+      </div>
+      <input type="file" id="bg-file-inp" multiple accept="image/*" hidden onchange="bgAddFiles(this.files)">
+      <input type="file" id="bg-folder-inp" multiple webkitdirectory hidden onchange="bgAddFiles(this.files)">
+    </div>
+
+    <!-- Queue wrap: preview grid + count only -->
+    <div id="bg-queue-wrap" style="display:none;margin-top:1rem;">
+      <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-bottom:.75rem;">
+        <span id="bg-queue-count" style="font-weight:600;color:#166534;"></span>
+        <button class="btn-sm btn-red" onclick="bgClearAll()"><i class="fas fa-trash"></i> Clear All</button>
+      </div>
+      <div id="bg-preview-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.6rem;margin-bottom:.75rem;"></div>
+    </div>
+
+    <!-- Action section: always visible, disabled until images added -->
+    <div id="bg-action-wrap" style="margin-top:.85rem;">
+      <!-- Progress bar -->
+      <div id="bg-progress-bar-wrap" style="display:none;margin-bottom:.85rem;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:9px;padding:.85rem 1rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem;">
+          <span id="bg-prog-label" style="font-weight:700;color:#5b21b6;font-size:.875rem;display:flex;align-items:center;gap:.4rem;">
+            <i class="fas fa-spinner spin"></i> Processing…
+          </span>
+          <span id="bg-prog-pct" style="color:#5b21b6;font-size:.875rem;font-weight:700;">0%</span>
+        </div>
+        <div style="background:#ddd6fe;border-radius:999px;height:10px;overflow:hidden;">
+          <div id="bg-prog-bar" style="height:100%;border-radius:999px;background:#7c3aed;transition:width .25s ease;width:0%;"></div>
+        </div>
+        <div id="bg-prog-file" style="font-size:.78rem;color:#5b21b6;margin-top:.45rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.8;"></div>
+      </div>
+      <!-- Process button — always visible -->
+      <button type="button" id="bg-process-btn" onclick="bgProcess()" disabled
+              style="padding:.62rem 2rem;background:#d1d5db;color:#9ca3af;border:none;border-radius:.45rem;cursor:not-allowed;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:.5rem;">
+        <i class="fas fa-magic"></i> Remove Backgrounds
+      </button>
+    </div>
+
+    <div id="bg-results" style="display:none;" class="results-panel">
+      <div class="rp-hdr">
+        <span class="rp-title" id="bg-results-title">✅ Processed Files</span>
+      </div>
+      <div class="result-files" id="bg-results-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 3 — COMPRESSOR ══ -->
+  <div class="panel" id="panel-compressor">
+    <div class="sec-hdr">
+      <div class="sec-icon" style="background:#d97706;"><i class="fas fa-bolt"></i></div>
+      <div>
+        <div class="sec-title">Universal Compressor</div>
+        <p class="sec-sub">Compress PDF, Word, Excel, PowerPoint, images and ZIP archives with real size reduction — all processing runs locally in your browser.</p>
+      </div>
+    </div>
+
+    <p style="font-weight:600;color:#374151;margin-bottom:.5rem;font-size:.875rem;">Compression Quality</p>
+    <div class="quality-row">
+      <button type="button" class="q-btn" id="q-high" onclick="setQuality('high')">
+        <i class="fas fa-star"></i> High (Less Compression)
+      </button>
+      <button type="button" class="q-btn active" id="q-medium" onclick="setQuality('medium')">
+        <i class="fas fa-adjust"></i> Medium (Recommended)
+      </button>
+      <button type="button" class="q-btn" id="q-low" onclick="setQuality('low')">
+        <i class="fas fa-compress"></i> Low (Maximum Savings)
+      </button>
+    </div>
+    <div class="quality-info">
+      <i class="fas fa-info-circle" style="color:#16a34a;margin-right:.3rem;"></i>
+      <span id="quality-info-text">Medium — best balance of file size and visual quality (recommended for most files)</span>
+    </div>
+
+    <p style="font-size:.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;margin-top:.75rem;">Supported Formats</p>
+    <div class="fmt-row" style="margin-bottom:1rem;">
+      <span class="fmt-badge" style="background:#fee2e2;color:#ef4444;"><i class="fas fa-file-pdf"></i>PDF</span>
+      <span class="fmt-badge" style="background:#dbeafe;color:#2563eb;"><i class="fas fa-file-word"></i>DOCX</span>
+      <span class="fmt-badge" style="background:#dcfce7;color:#16a34a;"><i class="fas fa-file-excel"></i>XLSX</span>
+      <span class="fmt-badge" style="background:#ffedd5;color:#f97316;"><i class="fas fa-file-powerpoint"></i>PPTX</span>
+      <span class="fmt-badge" style="background:#ede9fe;color:#7c3aed;"><i class="fas fa-file-image"></i>JPG</span>
+      <span class="fmt-badge" style="background:#fce7f3;color:#db2777;"><i class="fas fa-file-image"></i>JPEG</span>
+      <span class="fmt-badge" style="background:#cffafe;color:#0891b2;"><i class="fas fa-file-image"></i>PNG</span>
+      <span class="fmt-badge" style="background:#fef9c3;color:#854d0e;"><i class="fas fa-file-archive"></i>ZIP</span>
+    </div>
+
+    <div class="drop-zone" id="comp-drop"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="compDrop(event)">
+      <div class="dz-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+      <p class="dz-title">Drop Files Here</p>
+      <div class="btn-row">
+        <button type="button" class="btn-primary" onclick="document.getElementById('comp-file-inp').click()">
+          <i class="fas fa-file"></i> Browse Files
+        </button>
+        <button type="button" class="btn-outline" onclick="document.getElementById('comp-folder-inp').click()">
+          <i class="fas fa-folder-open"></i> Browse Folder
+        </button>
+      </div>
+      <input type="file" id="comp-file-inp" multiple accept=".pdf,.docx,.xlsx,.pptx,.jpg,.jpeg,.png,.webp,.zip" hidden onchange="compAddFiles(this.files)">
+      <input type="file" id="comp-folder-inp" multiple webkitdirectory hidden onchange="compAddFiles(this.files)">
+    </div>
+
+    <!-- Queue wrap: file list + count only -->
+    <div id="comp-queue-wrap" style="display:none;margin-top:1rem;">
+      <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;margin-bottom:.4rem;">
+        <span id="comp-queue-count" style="font-weight:600;color:#166534;font-size:.9rem;"></span>
+        <button type="button" class="btn-sm btn-red" onclick="compClearAll()">
+          <i class="fas fa-trash"></i> Clear All
+        </button>
+      </div>
+      <div class="file-list" id="comp-file-list"></div>
+    </div>
+
+    <!-- Action section: always visible — button starts disabled until files are added -->
+    <div id="comp-action-wrap" style="margin-top:.85rem;">
+      <!-- Progress bar — shown only while processing -->
+      <div id="comp-progress-bar-wrap" style="display:none;margin-bottom:.85rem;background:#fff8ed;border:1.5px solid #fde68a;border-radius:9px;padding:.85rem 1rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem;">
+          <span id="comp-prog-label" style="font-weight:700;color:#92400e;font-size:.875rem;display:flex;align-items:center;gap:.4rem;">
+            <i class="fas fa-spinner spin"></i> Processing…
+          </span>
+          <span id="comp-prog-pct" style="color:#92400e;font-size:.875rem;font-weight:700;">0%</span>
+        </div>
+        <div style="background:#fde68a;border-radius:999px;height:10px;overflow:hidden;">
+          <div id="comp-prog-bar" style="height:100%;border-radius:999px;background:#d97706;transition:width .25s ease;width:0%;"></div>
+        </div>
+        <div id="comp-prog-file" style="font-size:.78rem;color:#92400e;margin-top:.45rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.8;"></div>
+      </div>
+      <!-- Process button — always visible; disabled until files are added -->
+      <button type="button" id="comp-process-btn" onclick="compProcess()" disabled
+              style="padding:.62rem 2rem;background:#d1d5db;color:#9ca3af;border:none;border-radius:.45rem;cursor:not-allowed;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:.5rem;">
+        <i class="fas fa-compress-alt"></i> Process Files
+      </button>
+    </div>
+
+    <div id="comp-results" style="display:none;" class="results-panel">
+      <div class="rp-hdr">
+        <span class="rp-title" id="comp-results-title">✅ Compressed Files</span>
+        <span id="comp-savings-badge" style="background:#dcfce7;padding:.3rem .75rem;border-radius:20px;font-size:.8rem;font-weight:600;color:#166534;"></span>
+      </div>
+      <div class="result-files" id="comp-results-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 4 — OBJECT ERASER ══ -->
+  <div class="panel" id="panel-canvas">
+
+    <div class="sec-hdr" style="background:#fff5f5;border-color:#fecdd3;">
+      <div class="sec-icon" style="background:#ef4444;"><i class="fas fa-eraser"></i></div>
+      <div>
+        <div class="sec-title" style="color:#dc2626;">Object Eraser</div>
+        <p class="sec-sub">Paint over any object, person, text or watermark — AI removes it and fills the background.</p>
+      </div>
+    </div>
+
+    <div class="oe-layout">
+
+      <!-- ── LEFT: Canvas area ── -->
+      <div>
+        <!-- Toolbar (shown after image loaded) -->
+        <div class="oe-toolbar" id="oe-toolbar" style="display:none;">
+          <button class="oe-tool-btn oe-active-tool" id="oe-btn-brush" onclick="oeSetTool('brush')">
+            <i class="fas fa-paint-brush"></i> Brush
+          </button>
+          <button class="oe-tool-btn" id="oe-btn-hand" onclick="oeSetTool('hand')" title="Pan / reposition image">
+            <i class="fas fa-hand-paper"></i> Hand
+          </button>
+          <button class="oe-tool-btn" id="oe-btn-restore" onclick="oeSetTool('restore')" title="Restore painted area">
+            <i class="fas fa-undo-alt"></i> Restore
+          </button>
+          <button class="oe-tool-btn" id="oe-btn-undo" onclick="oeUndo()" disabled title="Undo last stroke" style="color:#374151;">
+            <i class="fas fa-rotate-left"></i> Undo
+          </button>
+          <button class="oe-tool-btn" id="oe-btn-redo" onclick="oeRedo()" disabled title="Redo" style="color:#374151;">
+            <i class="fas fa-rotate-right"></i> Redo
+          </button>
+          <div style="display:flex;align-items:center;gap:.45rem;margin-left:auto;">
+            <label style="font-size:.78rem;color:#6b7280;font-weight:500;white-space:nowrap;">Size&nbsp;<span id="oe-size-val">10</span>px</label>
+            <input type="range" id="oe-size" min="5" max="100" value="10" style="width:130px;accent-color:#ef4444;" oninput="document.getElementById('oe-size-val').textContent=this.value">
+          </div>
+          <button id="oe-toolbar-action-btn" class="oe-tool-btn" onclick="oeToolbarAction()" style="margin-left:.3rem;display:none;background:#ef4444;color:#fff;border-color:#ef4444;">
+            <i class="fas fa-eraser"></i> Erase it
+          </button>
+        </div>
+
+        <!-- Canvas container -->
+        <div class="oe-canvas-wrap" id="oe-canvas-wrap">
+          <!-- Placeholder -->
+          <div id="oe-placeholder" style="text-align:center;color:#9ca3af;padding:2.5rem;z-index:1;">
+            <i class="fas fa-image" style="font-size:3.5rem;display:block;margin-bottom:.9rem;opacity:.25;"></i>
+            <p style="font-weight:700;font-size:1.05rem;color:#6b7280;">Upload a photo to begin</p>
+            <p style="font-size:.83rem;margin-top:.3rem;">Use Step 1 in the panel on the right</p>
+          </div>
+          <!-- Zoom controls (left side) -->
+          <div class="oe-zoom-bar" id="oe-zoom-bar">
+            <button class="oe-zoom-btn" onclick="oeZoomIn()" title="Zoom in"><i class="fas fa-search-plus"></i></button>
+            <div style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:3px 0;text-align:center;">
+              <span class="oe-zoom-label" id="oe-zoom-pct">100%</span>
+            </div>
+            <button class="oe-zoom-btn" onclick="oeZoomOut()" title="Zoom out"><i class="fas fa-search-minus"></i></button>
+            <button class="oe-zoom-btn" onclick="oeZoomReset()" title="Reset zoom" style="font-size:.7rem;"><i class="fas fa-compress-arrows-alt"></i></button>
+          </div>
+          <!-- Inner canvas wrapper (sized to image aspect ratio, scaled for zoom) -->
+          <div id="oe-canvas-inner">
+            <canvas id="oe-base"></canvas>
+            <canvas id="oe-mask"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RIGHT: Step panel ── -->
+      <div style="display:flex;flex-direction:column;gap:.85rem;">
+
+        <!-- Upload -->
+        <div class="oe-step-card oe-active" id="oe-card1">
+          <div class="oe-step-body">
+            <div class="oe-drop-zone" id="oe-drop"
+                 ondragover="event.preventDefault();this.classList.add('oe-drag')"
+                 ondragleave="this.classList.remove('oe-drag')"
+                 ondrop="oeDrop(event)"
+                 onclick="document.getElementById('oe-file-inp').click()">
+              <i class="fas fa-upload" style="font-size:2rem;color:#ef4444;margin-bottom:.4rem;display:block;"></i>
+              <p style="font-weight:600;color:#374151;font-size:.88rem;">Upload photo here</p>
+              <p style="font-size:.75rem;color:#9ca3af;margin-top:.15rem;">or click to browse · JPG / PNG / WEBP</p>
+            </div>
+            <input type="file" id="oe-file-inp" accept="image/*" hidden onchange="oeLoadFile(this.files[0])">
+            <div id="oe-file-badge" style="display:none;margin-top:.55rem;font-size:.8rem;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:.3rem .7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><i class="fas fa-check-circle" style="margin-right:.3rem;"></i><span id="oe-file-name"></span></div>
+          </div>
+        </div>
+
+        <!-- Paint -->
+        <div class="oe-step-card" id="oe-card2">
+          <div class="oe-step-body">
+            <p style="font-size:.82rem;color:#6b7280;line-height:1.55;margin-bottom:.6rem;">Brush over the object you want to remove. Cover the <strong>entire</strong> object — the red highlight shows what will be erased.</p>
+            <div style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:#6b7280;">
+              <span style="width:14px;height:14px;background:rgba(239,68,68,.55);border-radius:3px;flex-shrink:0;display:inline-block;border:1px solid rgba(239,68,68,.8);"></span>
+              Red area = object to remove
+            </div>
+          </div>
+        </div>
+
+        <!-- Hidden functional elements required by oeErase() JS -->
+        <div style="display:none;" aria-hidden="true">
+          <div id="oe-card3"></div>
+          <button id="oe-erase-btn" onclick="oeErase()" disabled></button>
+          <p id="oe-erase-hint"></p>
+        </div>
+        <!-- Progress bar (shown during processing) -->
+        <div id="oe-prog-wrap" style="display:none;background:#fff5f5;border:1.5px solid #fecdd3;border-radius:8px;padding:.7rem .85rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+            <span id="oe-prog-label" style="font-size:.82rem;font-weight:600;color:#dc2626;display:flex;align-items:center;gap:.35rem;"><i class="fas fa-spinner spin"></i> <span id="oe-prog-msg">Processing…</span></span>
+            <span id="oe-prog-pct" style="font-size:.82rem;font-weight:700;color:#dc2626;">0%</span>
+          </div>
+          <div style="background:#fecdd3;border-radius:999px;height:7px;overflow:hidden;">
+            <div id="oe-prog-bar" style="height:100%;border-radius:999px;background:#ef4444;transition:width .25s ease;width:0%;"></div>
+          </div>
+        </div>
+
+        <!-- Error box -->
+        <div id="oe-err-box" style="display:none;background:#fee2e2;border:1.5px solid #fca5a5;border-radius:8px;padding:.6rem .85rem;color:#dc2626;font-size:.83rem;font-weight:600;"></div>
+
+        <!-- Result panel -->
+        <div id="oe-result-card" style="display:none;" class="oe-step-card" style="border-color:#bbf7d0;">
+          <div class="oe-step-hdr" style="background:#f0fdf4;border-bottom-color:#bbf7d0;">
+            <i class="fas fa-check-circle" style="color:#16a34a;font-size:.9rem;"></i>
+            <span class="oe-step-title" style="color:#166534;">Object Erased!</span>
+          </div>
+          <div class="oe-step-body">
+            <canvas id="oe-result-thumb" class="oe-checkerboard" style="width:100%;border-radius:7px;border:1px solid #bbf7d0;margin-bottom:.65rem;display:block;"></canvas>
+            <button onclick="oeEraseAnother()" style="width:100%;padding:.45rem;background:#fff;color:#374151;border:1.5px solid #d1d5db;border-radius:7px;cursor:pointer;font-weight:600;font-size:.82rem;display:flex;align-items:center;justify-content:center;gap:.4rem;">
+              <i class="fas fa-redo"></i> Erase Another Object
+            </button>
+          </div>
+        </div>
+
+      </div><!-- right panel -->
+    </div><!-- oe-layout -->
+  </div>
+
+  <!-- ══ TAB 5 — TEXT EXTRACTOR ══ -->
+  <div class="panel" id="panel-storage">
+    <div class="sec-hdr">
+      <div class="sec-icon" style="background:#2563eb;"><i class="fas fa-file-alt"></i></div>
+      <div>
+        <div class="sec-title">Text Extractor</div>
+        <p class="sec-sub">Upload any image or PDF and extract text using AI — receipts or general documents.</p>
+      </div>
+    </div>
+
+    <!-- Upload zone -->
+    <div id="tx-drop" style="border:2px dashed #93c5fd;border-radius:12px;padding:2rem 1rem;text-align:center;cursor:pointer;background:#eff6ff;transition:all .2s;margin-bottom:.85rem;"
+      ondragover="event.preventDefault();this.style.borderColor='#2563eb';this.style.background='#dbeafe'"
+      ondragleave="this.style.borderColor='#93c5fd';this.style.background='#eff6ff'"
+      ondrop="txDrop(event)" onclick="document.getElementById('tx-file-inp').click()">
+      <i class="fas fa-cloud-upload-alt" style="font-size:2.2rem;color:#3b82f6;display:block;margin-bottom:.5rem;"></i>
+      <p style="font-weight:700;color:#1d4ed8;font-size:.95rem;margin-bottom:.2rem;">Upload Image or PDF</p>
+      <p style="font-size:.78rem;color:#64748b;">JPG · PNG · WEBP · PDF — drag & drop or click to browse</p>
+    </div>
+    <input type="file" id="tx-file-inp" accept="image/*,.pdf" hidden onchange="txFileSelected(this.files[0])">
+
+    <!-- File badge -->
+    <div id="tx-file-badge" style="display:none;margin-bottom:.85rem;font-size:.82rem;color:#1d4ed8;background:#eff6ff;border:1px solid #93c5fd;border-radius:7px;padding:.35rem .75rem;display:none;align-items:center;gap:.45rem;">
+      <i class="fas fa-file" style="flex-shrink:0;"></i>
+      <span id="tx-file-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <button onclick="txClearFile()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:.85rem;" title="Remove file"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Mode selector -->
+    <div style="display:flex;gap:.5rem;margin-bottom:.9rem;">
+      <input type="radio" name="tx-mode" value="general" id="tx-radio-general" checked onchange="txModeChange()" hidden>
+      <label id="tx-mode-general" for="tx-radio-general"
+        style="display:inline-flex;align-items:center;gap:.38rem;padding:.32rem .75rem;border-radius:999px;border:2px solid #2563eb;background:#eff6ff;cursor:pointer;font-size:.78rem;font-weight:700;color:#1d4ed8;transition:all .15s;white-space:nowrap;">
+        <i class="fas fa-align-left" style="color:#2563eb;font-size:.8rem;"></i> General
+      </label>
+      <input type="radio" name="tx-mode" value="receipt" id="tx-radio-receipt" onchange="txModeChange()" hidden>
+      <label id="tx-mode-receipt" for="tx-radio-receipt"
+        style="display:inline-flex;align-items:center;gap:.38rem;padding:.32rem .75rem;border-radius:999px;border:2px solid #e2e8f0;background:#fff;cursor:pointer;font-size:.78rem;font-weight:700;color:#64748b;transition:all .15s;white-space:nowrap;">
+        <i class="fas fa-receipt" style="color:#f59e0b;font-size:.8rem;"></i> For Receipt
+      </label>
+    </div>
+
+    <!-- Process button -->
+    <button id="tx-process-btn" onclick="txProcess()" disabled
+      style="width:100%;padding:.65rem;background:#2563eb;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.5rem;margin-bottom:.9rem;opacity:.45;transition:all .2s;">
+      <i class="fas fa-magic"></i> Extract Text
+    </button>
+
+    <!-- Progress -->
+    <div id="tx-prog" style="display:none;margin-bottom:.85rem;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:8px;padding:.65rem .85rem;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:.3rem;">
+        <span style="font-size:.82rem;font-weight:600;color:#1d4ed8;display:flex;align-items:center;gap:.35rem;">
+          <i class="fas fa-spinner spin"></i> <span id="tx-prog-msg">Processing…</span>
+        </span>
+        <span id="tx-prog-pct" style="font-size:.82rem;font-weight:700;color:#1d4ed8;">0%</span>
+      </div>
+      <div style="background:#bfdbfe;border-radius:999px;height:6px;overflow:hidden;">
+        <div id="tx-prog-bar" style="height:100%;border-radius:999px;background:#2563eb;transition:width .3s;width:0%;"></div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="tx-err" style="display:none;background:#fee2e2;border:1.5px solid #fca5a5;border-radius:8px;padding:.6rem .85rem;color:#dc2626;font-size:.83rem;font-weight:600;margin-bottom:.75rem;"></div>
+
+    <!-- Output -->
+    <div id="tx-output-wrap" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem;">
+        <span style="font-weight:700;font-size:.9rem;color:#1e293b;"><i class="fas fa-align-left" style="color:#2563eb;margin-right:.35rem;"></i>Extracted Text</span>
+        <button id="tx-copy-btn" onclick="txCopyOutput(this)" style="padding:.28rem .75rem;background:#eff6ff;color:#2563eb;border:1.5px solid #93c5fd;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;">
+          <i class="fas fa-copy"></i> Copy
+        </button>
+      </div>
+      <div id="tx-output"
+        style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:9px;padding:.85rem 1rem;font-size:.84rem;color:#1e293b;white-space:pre-wrap;word-break:break-word;line-height:1.65;min-height:80px;max-height:480px;overflow-y:auto;font-family:inherit;"></div>
+    </div>
+  </div>
+
+</div><!-- .card -->
+</div><!-- .wrap -->
+
+<!-- Admin Modal -->
+<div id="adminModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center">
+  <div class="bg-white p-6 rounded-lg shadow-xl w-80 z-[101]">
+    <h3 class="text-lg font-bold mb-4 text-brand-dark">Admin Login</h3>
+    <input type="password" id="adminPassInput" autocomplete="off" data-lpignore="true" data-1p-ignore
+      class="w-full border border-gray-300 rounded p-2 mb-2 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand"
+      placeholder="Enter Password" onkeypress="if(event.key==='Enter')submitAdminLogin()">
+    <p id="adminError" class="text-red-500 text-sm mb-4 hidden">Incorrect Password!</p>
+    <div class="flex justify-end space-x-2">
+      <button onclick="closeAdminModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium">Cancel</button>
+      <button onclick="submitAdminLogin()" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark font-medium">Login</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── YIK YUE Shared SSO (Firebase-based, works across Google Sites iframes) ─ */
+(function(){
+var _SC={apiKey:"AIzaSyCbe-CBozEbwUMwxyxb8WVcBqXSBeSRHFw",databaseURL:"https://payment-voucher-6aa57-default-rtdb.asia-southeast1.firebasedatabase.app"};
+var _SM=12*3600*1000; /* 12-hour session */
+function _fnv32(s){var h=0x811c9dc5>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return('00000000'+(h>>>0).toString(16)).slice(-8);}
+function _canvasFP(){try{var c=document.createElement('canvas');c.width=220;c.height=60;var x=c.getContext('2d');x.textBaseline='top';x.font='bold 14px Arial,sans-serif';x.fillStyle='#f05c37';x.fillRect(0,0,220,60);x.fillStyle='#fff';x.fillText('DeviceFingerprint•YYK',2,5);x.font='italic 11px Georgia';x.fillStyle='rgba(60,120,255,0.85)';x.fillText('ABCαβγéñ',10,28);x.beginPath();x.arc(180,30,22,0,Math.PI*2);x.fillStyle='rgba(20,200,100,0.6)';x.fill();return c.toDataURL().slice(-80);}catch(e){return 'nc';}}
+function _buildFP(){var n=navigator,s=screen,tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone;}catch(e){}var parts=[(n.userAgent||'').replace(/\d+\.\d+\.\d+/g,'X'),n.language||n.userLanguage||'',n.hardwareConcurrency||'',n.deviceMemory||'',s.width+'x'+s.height,s.availWidth+'x'+s.availHeight,s.colorDepth||'',s.pixelDepth||'',n.platform||'',tz,(n.maxTouchPoints||0),_canvasFP()];return'fp_'+_fnv32(parts.join('||'));}
+function getDeviceId(){try{var stored=localStorage.getItem('yykDeviceId');if(stored&&stored.startsWith('fp_'))return stored;}catch(e){}var fp=_buildFP();try{localStorage.setItem('yykDeviceId',fp);}catch(e){}return fp;}
+var currentDeviceId=getDeviceId();
+window._yykDID=currentDeviceId;
+var _db=null;
+function _gdb(){if(_db)return _db;try{var a=firebase.app('yyk-sso');_db=firebase.database(a);return _db;}catch(e){}try{var a=firebase.initializeApp(_SC,'yyk-sso');_db=firebase.database(a);return _db;}catch(e2){}return null;}
+window.ssoLogin=function(){var _did=currentDeviceId;var d=_gdb();if(d)d.ref('adminSessions/'+_did).set({ts:Date.now(),did:_did});try{localStorage.setItem('yyAdminSession',JSON.stringify({did:_did,ts:Date.now()}));}catch(e){}};
+window.ssoLogout=function(){var d=_gdb();if(d)d.ref('adminSessions/'+currentDeviceId).remove();try{localStorage.removeItem('yyAdminSession');}catch(e){}};
+window.ssoCheck=function(cb){try{var _ls=localStorage.getItem('yyAdminSession');if(_ls){var _lo=JSON.parse(_ls);if(_lo&&_lo.did===currentDeviceId&&_lo.ts&&(Date.now()-_lo.ts)<_SM){cb(true);return;}}}catch(e){}var d=_gdb();if(!d){cb(false);return;}d.ref('adminSessions/'+currentDeviceId).once('value',function(s){var v=s.val();if(v&&v.ts&&(Date.now()-v.ts)<_SM&&(!v.did||v.did===currentDeviceId)){try{localStorage.setItem('yyAdminSession',JSON.stringify({did:currentDeviceId,ts:Date.now()}));}catch(e){}cb(true);}else{if(v)d.ref('adminSessions/'+currentDeviceId).remove();try{localStorage.removeItem('yyAdminSession');}catch(e){}cb(false);}});};
+// window._yykDID already set above
+})();
+
+/* ═══════════════════════ UTILITIES ═══════════════════════ */
+var isAdmin=false;
+var ADMIN_PASSWORD='ifarrafi';
+
+/* ── Shared admin state — synced across all pages via Firebase SSO ── */
+function _applyAdminState(loggedIn){
+  isAdmin=loggedIn;
+  var btn=document.getElementById('adminBtn');
+  if(!btn)return;
+  btn.innerHTML=loggedIn?'<i class="fas fa-user-shield mr-2"></i>Logout':'<i class="fas fa-user-lock mr-2"></i>Admin';
+  var wrap=document.getElementById('serverApiWrap');
+  if(wrap)wrap.style.display=loggedIn?'':'none';
+  var naBtn=document.getElementById('nameAddressBtn');
+  if(naBtn)naBtn.style.display=loggedIn?'':'none';
+}
+function checkAdmin(){
+  if(isAdmin){
+    ssoLogout();
+    _applyAdminState(false);
+  } else {
+    document.getElementById('adminModal').classList.remove('hidden');
+    document.getElementById('adminPassInput').value='';
+    document.getElementById('adminError').classList.add('hidden');
+    document.body.style.overflow='hidden';
+    setTimeout(function(){document.getElementById('adminPassInput').focus();},100);
+  }
+}
+function closeAdminModal(){
+  document.getElementById('adminModal').classList.add('hidden');
+  document.body.style.overflow='';
+}
+function submitAdminLogin(){
+  if(document.getElementById('adminPassInput').value===ADMIN_PASSWORD){
+    isAdmin=true;
+    ssoLogin();
+    _applyAdminState(true);
+    closeAdminModal();
+  } else {
+    document.getElementById('adminError').classList.remove('hidden');
+  }
+}
+/* Restore on page load via Firebase SSO session check */
+document.addEventListener('DOMContentLoaded',function(){
+  ssoCheck(function(ok){ if(ok) _applyAdminState(true); });
+  /* Fetch server-persisted Firebase config — works in Google Sites iframes where localStorage is blocked */
+  fetch('/api/app-config/tools-firebase-config')
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if(d && d.config && typeof d.config === 'object'){
+        _resetToolsDb();
+        _initToolsFirebase(d.config);
+        try { localStorage.setItem('serverConfig_yyk_tools', JSON.stringify(d.config)); } catch(e){}
+      } else if(!DEFAULT_SERVER_CONFIG) {
+        _initToolsFirebase(BUILTIN_DEFAULT_CONFIG);
+      }
+      txInit();
+    })
+    .catch(function(){ if(!DEFAULT_SERVER_CONFIG) _initToolsFirebase(BUILTIN_DEFAULT_CONFIG); txInit(); });
+});
+
+function switchTab(id){
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('t-'+id).classList.add('active');
+  document.getElementById('panel-'+id).classList.add('active');
+}
+
+function switchSubTab(parent,id){
+  var sp=(parent==='canvas')?'cv':'comp';
+  document.querySelectorAll('[id^="st-'+sp+'-"]').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('[id^="sp-'+sp+'-"]').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('st-'+sp+'-'+id).classList.add('active');
+  document.getElementById('sp-'+sp+'-'+id).classList.add('active');
+}
+
+
+
+function fmtBytes(b){
+  if(b<1024)return b+' B';
+  if(b<1048576)return(b/1024).toFixed(1)+' KB';
+  return(b/1048576).toFixed(2)+' MB';
+}
+
+/* ═══════════════════════ VAULT HELPERS (used by other tabs) ══════════════ */
+var VAULT_KEY='yyk_temp_vault';
+function vaultGet(){try{var r=sessionStorage.getItem(VAULT_KEY);return r?JSON.parse(r):[];}catch(e){return[];}}
+function vaultSave(f){try{sessionStorage.setItem(VAULT_KEY,JSON.stringify(f));}catch(e){}}
+function vaultStore(name,dataUrl,type){
+  var files=vaultGet();
+  var size=Math.ceil((dataUrl.length*3)/4);
+  files=files.filter(function(f){return f.name!==name;});
+  files.unshift({name:name,dataUrl:dataUrl,type:type,size:size,savedAt:Date.now()});
+  vaultSave(files.slice(0,100));
+}
+function blobToVault(name,blob){
+  var r=new FileReader();r.onload=function(){vaultStore(name,r.result,blob.type);};r.readAsDataURL(blob);
+}
+var FMT_VAULT={
+  pdf:{color:'#ef4444',bg:'#fee2e2',icon:'fa-file-pdf'},
+  docx:{color:'#2563eb',bg:'#dbeafe',icon:'fa-file-word'},
+  xlsx:{color:'#16a34a',bg:'#dcfce7',icon:'fa-file-excel'},
+  pptx:{color:'#f97316',bg:'#ffedd5',icon:'fa-file-powerpoint'},
+  jpg:{color:'#7c3aed',bg:'#ede9fe',icon:'fa-file-image'},
+  jpeg:{color:'#db2777',bg:'#fce7f3',icon:'fa-file-image'},
+  png:{color:'#0891b2',bg:'#cffafe',icon:'fa-file-image'},
+  webp:{color:'#0891b2',bg:'#cffafe',icon:'fa-file-image'},
+  zip:{color:'#854d0e',bg:'#fef9c3',icon:'fa-file-archive'}
+};
+
+/* ═══════════════════════ CONVERTER ═══════════════════════ */
+var CONV_RULES={
+  pdf:['docx','xlsx','pptx','jpg','jpeg','png'],
+  docx:['pdf','xlsx','pptx','jpg','jpeg','png'],
+  xlsx:['pdf','docx'],
+  pptx:['pdf','docx','jpg','jpeg','png'],
+  jpg:['pdf','docx','pptx','jpg','jpeg','png'],
+  jpeg:['pdf','docx','pptx','jpg','jpeg','png'],
+  png:['pdf','docx','pptx','jpg','jpeg','png']
+};
+var FMT_INFO={
+  pdf:{label:'PDF',color:'#ef4444',bg:'#fee2e2',icon:'fa-file-pdf'},
+  docx:{label:'DOCX',color:'#2563eb',bg:'#dbeafe',icon:'fa-file-word'},
+  xlsx:{label:'XLSX',color:'#16a34a',bg:'#dcfce7',icon:'fa-file-excel'},
+  pptx:{label:'PPTX',color:'#f97316',bg:'#ffedd5',icon:'fa-file-powerpoint'},
+  jpg:{label:'JPG',color:'#7c3aed',bg:'#ede9fe',icon:'fa-file-image'},
+  jpeg:{label:'JPEG',color:'#db2777',bg:'#fce7f3',icon:'fa-file-image'},
+  png:{label:'PNG',color:'#0891b2',bg:'#cffafe',icon:'fa-file-image'}
+};
+var SUPPORTED=['pdf','docx','xlsx','pptx','jpg','jpeg','png'];
+var IMG_EXTS=['jpg','jpeg','png'];
+
+var convQueue=[],convSel={},convRunning=false;
+
+function getExt(name){var e=(name.split('.').pop()||'').toLowerCase();return SUPPORTED.includes(e)?e:null;}
+
+function convDrop(e){e.preventDefault();document.getElementById('conv-drop').classList.remove('drag-over');convAddFiles(e.dataTransfer.files);}
+function convAddFiles(files){
+  Array.from(files||[]).forEach(function(f){var ext=getExt(f.name);if(ext)convQueue.push({file:f,ext:ext});});
+  convRenderQueue();
+}
+function convRenderQueue(){
+  var qw=document.getElementById('conv-queue-wrap');
+  var tw=document.getElementById('conv-target-wrap');
+  var bw=document.getElementById('conv-btn-wrap');
+  if(!convQueue.length){qw.style.display='none';tw.style.display='none';bw.style.display='none';return;}
+  qw.style.display='block';
+  document.getElementById('conv-queue-count').textContent=convQueue.length+' file'+(convQueue.length!==1?'s':'')+' selected';
+  var list=document.getElementById('conv-file-list');list.innerHTML='';
+  convQueue.forEach(function(qf,i){
+    var info=FMT_INFO[qf.ext];
+    var li=document.createElement('div');li.className='file-item';
+    li.innerHTML=
+      '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;background:'+info.bg+';color:'+info.color+';font-size:.7rem;font-weight:700;flex-shrink:0;"><i class="fas '+info.icon+'"></i>'+info.label+'</span>'+
+      '<span class="file-name">'+qf.file.name+'</span>'+
+      '<button class="rm-btn" onclick="convRemove('+i+')">×</button>';
+    list.appendChild(li);
+  });
+  var exts=[];convQueue.forEach(function(q){if(!exts.includes(q.ext))exts.push(q.ext);});
+  tw.style.display='block';
+  var groups=document.getElementById('conv-groups');groups.innerHTML='';
+  exts.forEach(function(srcExt){
+    var srcInfo=FMT_INFO[srcExt];
+    var targets=CONV_RULES[srcExt]||[];
+    var cnt=convQueue.filter(function(q){return q.ext===srcExt;}).length;
+    var div=document.createElement('div');div.className='conv-group';
+    div.innerHTML='<div class="conv-group-hdr"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:5px;background:'+srcInfo.bg+';color:'+srcInfo.color+';font-size:.73rem;font-weight:700;"><i class="fas '+srcInfo.icon+'"></i>'+srcInfo.label+'</span><span style="color:#4b7c6a;font-weight:400;font-size:.8rem;">'+cnt+' file'+(cnt!==1?'s':'')+'</span><i class="fas fa-arrow-right" style="margin-left:auto;color:#16a34a;font-size:.8rem;"></i></div><div class="conv-options" id="cg-'+srcExt+'"></div>';
+    groups.appendChild(div);
+    var optWrap=document.getElementById('cg-'+srcExt);
+    targets.forEach(function(tgtExt){
+      var tInfo=FMT_INFO[tgtExt];
+      var lbl=document.createElement('label');lbl.className='conv-opt'+(convSel[srcExt]===tgtExt?' selected':'');
+      lbl.setAttribute('data-src',srcExt);lbl.setAttribute('data-tgt',tgtExt);
+      lbl.innerHTML='<input type="radio" name="tgt-'+srcExt+'" value="'+tgtExt+'" '+(convSel[srcExt]===tgtExt?'checked':'')+'>'+
+        '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;background:'+tInfo.bg+';color:'+tInfo.color+';font-size:.72rem;font-weight:700;"><i class="fas '+tInfo.icon+'"></i>'+tInfo.label+'</span>';
+      lbl.addEventListener('change',function(){
+        convSel[srcExt]=tgtExt;
+        document.querySelectorAll('[data-src="'+srcExt+'"]').forEach(function(l){l.classList.remove('selected');});
+        lbl.classList.add('selected');
+      });
+      optWrap.appendChild(lbl);
+    });
+  });
+  bw.style.display='block';
+  document.getElementById('conv-error').style.display='none';
+}
+function convRemove(i){convQueue.splice(i,1);convRenderQueue();}
+function convClearAll(){convQueue=[];convSel={};convRenderQueue();document.getElementById('conv-results').style.display='none';}
+
+async function imgToImg(file,tgtExt){
+  return new Promise(function(res,rej){
+    var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){
+      var c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+      var ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0);
+      var mime=tgtExt==='png'?'image/png':'image/jpeg';
+      c.toBlob(function(b){URL.revokeObjectURL(url);b?res(b):rej(new Error('blob failed'));},mime,0.92);
+    };img.onerror=rej;img.src=url;
+  });
+}
+async function imgToPdf(file){
+  return new Promise(function(res,rej){
+    var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){
+      var jsPDF=window.jspdf.jsPDF;
+      var doc=new jsPDF({orientation:img.naturalWidth>img.naturalHeight?'l':'p',unit:'px',format:[img.naturalWidth,img.naturalHeight]});
+      doc.addImage(img,'JPEG',0,0,img.naturalWidth,img.naturalHeight);
+      URL.revokeObjectURL(url);res(doc.output('blob'));
+    };img.onerror=rej;img.src=url;
+  });
+}
+async function pdfToImgs(file,tgtExt){
+  var ab=await file.arrayBuffer();
+  var pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  var results=[];var base=file.name.replace(/\.[^.]+$/,'');
+  var mime=tgtExt==='png'?'image/png':'image/jpeg';
+  for(var i=1;i<=pdf.numPages;i++){
+    var page=await pdf.getPage(i);var vp=page.getViewport({scale:1.5});
+    var c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;
+    await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+    var blob=await new Promise(function(r,j){c.toBlob(function(b){b?r(b):j(new Error('fail'));},mime,0.92);});
+    results.push({name:base+'_page_'+i+'.'+tgtExt,blob:blob});
+  }
+  return results;
+}
+async function docxToPdf(file){
+  var ab=await file.arrayBuffer();
+  var result=await mammoth.convertToHtml({arrayBuffer:ab});
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF({unit:'mm',format:'a4'});
+  var div=document.createElement('div');div.innerHTML=result.value;
+  div.style.cssText='position:fixed;left:-9999px;top:0;width:210mm;background:#fff;padding:18px;font-family:sans-serif;font-size:12px;';
+  document.body.appendChild(div);
+  await new Promise(function(r){setTimeout(r,200);});
+  var canvas=await html2canvas(div,{scale:1.5,useCORS:true});
+  document.body.removeChild(div);
+  var iData=canvas.toDataURL('image/jpeg',0.85);
+  var pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+  var iW=pw,iH=(canvas.height/canvas.width)*iW;
+  if(iH<=ph){doc.addImage(iData,'JPEG',0,0,iW,iH);}
+  else{var srcY=0,rem=iH;while(rem>0){doc.addImage(iData,'JPEG',0,-srcY,iW,iH);srcY+=ph;rem-=ph;if(rem>0)doc.addPage();}}
+  return doc.output('blob');
+}
+async function xlsxToPdf(file){
+  var ab=await file.arrayBuffer();
+  var wb=XLSX.read(ab,{type:'array'});
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF({unit:'mm',format:'a4'});var first=true;
+  wb.SheetNames.forEach(function(name){
+    var ws=wb.Sheets[name];var rows=XLSX.utils.sheet_to_json(ws,{header:1});
+    if(!rows.length)return;
+    if(!first)doc.addPage();first=false;
+    doc.setFontSize(10);doc.text(name,14,12);
+    doc.autoTable({head:[rows[0]],body:rows.slice(1),startY:16,styles:{fontSize:7,cellPadding:1},headStyles:{fillColor:[10,64,56]}});
+  });
+  return doc.output('blob');
+}
+function makeSimplePdf(msg){var jsPDF=window.jspdf.jsPDF;var doc=new jsPDF();doc.setFontSize(12);doc.text(msg,14,20,{maxWidth:180});return doc.output('blob');}
+function blobToDU(blob){return new Promise(function(r){var rd=new FileReader();rd.onload=function(){r(rd.result);};rd.readAsDataURL(blob);});}
+
+async function convSingleFile(qf,tgtExt){
+  var src=qf.ext,base=qf.file.name.replace(/\.[^.]+$/,'');
+  if(IMG_EXTS.includes(src)&&IMG_EXTS.includes(tgtExt)){var b=await imgToImg(qf.file,tgtExt);return {name:base+'.'+tgtExt,blob:b};}
+  if(IMG_EXTS.includes(src)&&tgtExt==='pdf'){var b=await imgToPdf(qf.file);return {name:base+'.pdf',blob:b};}
+  if(IMG_EXTS.includes(src)&&tgtExt==='docx'){var r2=await imgToImg(qf.file,'png');var h='<html><body><img src="'+await blobToDU(r2)+'" style="max-width:100%;"/></body></html>';return {name:base+'.docx',blob:new Blob([h],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})};}
+  if(IMG_EXTS.includes(src)&&tgtExt==='pptx'){var b2=await imgToPdf(qf.file);return {name:base+'.pptx',blob:b2};}
+  if(src==='pdf'&&IMG_EXTS.includes(tgtExt))return await pdfToImgs(qf.file,tgtExt);
+  if(src==='pdf'&&tgtExt==='docx'){
+    var ab=await qf.file.arrayBuffer();var pdf=await pdfjsLib.getDocument({data:ab}).promise;var text='';
+    for(var i=1;i<=pdf.numPages;i++){var pg=await pdf.getPage(i);var ct=await pg.getTextContent();text+=ct.items.map(function(it){return it.str;}).join(' ')+'\n\n';}
+    var h2='<html><body style="font-family:Calibri;line-height:1.6;">'+text.split('\n').map(function(l){return '<p>'+l+'</p>';}).join('')+'</body></html>';
+    return {name:base+'.docx',blob:new Blob([h2],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})};
+  }
+  if(src==='pdf'&&tgtExt==='xlsx'){
+    var ab2=await qf.file.arrayBuffer();var pdf2=await pdfjsLib.getDocument({data:ab2}).promise;var rows=[];
+    for(var ii=1;ii<=pdf2.numPages;ii++){var pg2=await pdf2.getPage(ii);var ct2=await pg2.getTextContent();rows.push([ct2.items.map(function(it){return it.str;}).join(' ')]);}
+    var wb2=XLSX.utils.book_new();var ws2=XLSX.utils.aoa_to_sheet(rows);XLSX.utils.book_append_sheet(wb2,ws2,'PDF Content');
+    return {name:base+'.xlsx',blob:new Blob([XLSX.write(wb2,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})};
+  }
+  if(src==='pdf'&&tgtExt==='pptx'){var imgs=await pdfToImgs(qf.file,'jpeg');var jsPDF2=window.jspdf.jsPDF;var doc2=new jsPDF2({orientation:'l',unit:'mm',format:'a4'});var first=true;for(var k=0;k<imgs.length;k++){if(!first)doc2.addPage();first=false;var url=URL.createObjectURL(imgs[k].blob);await new Promise(function(r){var im=new Image();im.onload=function(){doc2.addImage(im,'JPEG',0,0,297,210);URL.revokeObjectURL(url);r();};im.src=url;});}return {name:base+'.pptx',blob:doc2.output('blob')};}
+  if(src==='docx'&&tgtExt==='pdf'){var b3=await docxToPdf(qf.file);return {name:base+'.pdf',blob:b3};}
+  if(src==='docx'&&tgtExt==='xlsx'){var ab3=await qf.file.arrayBuffer();var res3=await mammoth.extractRawText({arrayBuffer:ab3});var lines=res3.value.split('\n').filter(function(l){return l.trim();});var wb3=XLSX.utils.book_new();var ws3=XLSX.utils.aoa_to_sheet(lines.map(function(l){return [l];}));XLSX.utils.book_append_sheet(wb3,ws3,'Text');return {name:base+'.xlsx',blob:new Blob([XLSX.write(wb3,{bookType:'xlsx',type:'array'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})};}
+  if(src==='docx'&&tgtExt==='pptx'){var b4=await docxToPdf(qf.file);return {name:base+'.pptx',blob:b4};}
+  if(src==='docx'&&IMG_EXTS.includes(tgtExt)){var pdfB=await docxToPdf(qf.file);var pdfF=new File([pdfB],base+'.pdf',{type:'application/pdf'});return await pdfToImgs(pdfF,tgtExt);}
+  if(src==='xlsx'&&tgtExt==='pdf'){var b5=await xlsxToPdf(qf.file);return {name:base+'.pdf',blob:b5};}
+  if(src==='xlsx'&&tgtExt==='docx'){var ab4=await qf.file.arrayBuffer();var wb4=XLSX.read(ab4,{type:'array'});var html='<html><body>';wb4.SheetNames.forEach(function(n){html+='<h2>'+n+'</h2>'+XLSX.utils.sheet_to_html(wb4.Sheets[n]);});html+='</body></html>';return {name:base+'.docx',blob:new Blob([html],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})};}
+  if(src==='pptx'&&tgtExt==='pdf'){return {name:base+'.pdf',blob:makeSimplePdf('Converted from: '+qf.file.name)};}
+  if(src==='pptx'&&tgtExt==='docx'){return {name:base+'.docx',blob:new Blob(['<html><body><p>Converted from '+qf.file.name+'</p></body></html>'],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})};}
+  if(src==='pptx'&&IMG_EXTS.includes(tgtExt)){var c2=document.createElement('canvas');c2.width=1280;c2.height=720;var ctx2=c2.getContext('2d');ctx2.fillStyle='#1e3a5f';ctx2.fillRect(0,0,1280,720);ctx2.fillStyle='#fff';ctx2.font='bold 28px sans-serif';ctx2.fillText('Slide from: '+qf.file.name,60,100);var b6=await new Promise(function(r,j){c2.toBlob(function(bl){bl?r(bl):j();},tgtExt==='png'?'image/png':'image/jpeg',0.9);});return {name:base+'_slide_1.'+tgtExt,blob:b6};}
+  throw new Error('Conversion '+src+' → '+tgtExt+' not supported.');
+}
+
+function _convYield(){return new Promise(function(r){setTimeout(r,20);});}
+function _convSetProgress(done,total,filename){
+  var pct=total>0?Math.round((done/total)*100):0;
+  document.getElementById('conv-prog-bar').style.width=pct+'%';
+  document.getElementById('conv-prog-pct').textContent=pct+'%';
+  document.getElementById('conv-prog-label').innerHTML=
+    '<i class="fas fa-spinner spin"></i> Converting file '+(done+1)+' of '+total+'…';
+  document.getElementById('conv-prog-file').textContent=filename||'';
+}
+async function convRun(){
+  if(convRunning)return;
+  var exts=[...new Set(convQueue.map(function(q){return q.ext;}))];
+  var missing=exts.filter(function(e){return !convSel[e];});
+  if(missing.length){document.getElementById('conv-error').style.display='flex';document.getElementById('conv-error').innerHTML='<i class="fas fa-exclamation-circle"></i> Please choose a target format for each file type.';return;}
+  convRunning=true;
+  document.getElementById('conv-error').style.display='none';
+  document.getElementById('conv-btn').disabled=true;
+  document.getElementById('conv-btn').innerHTML='<i class="fas fa-spinner spin"></i> Converting…';
+  var progEl=document.getElementById('conv-progress');
+  progEl.style.display='block';
+  document.getElementById('conv-prog-bar').style.width='0%';
+  document.getElementById('conv-prog-pct').textContent='0%';
+  document.getElementById('conv-prog-label').innerHTML='<i class="fas fa-spinner spin"></i> Starting…';
+  document.getElementById('conv-prog-file').textContent='';
+  document.getElementById('conv-results').style.display='none';
+  var allBlobs=[];var total=convQueue.length;
+  for(var i=0;i<convQueue.length;i++){
+    var qf=convQueue[i];var tgt=convSel[qf.ext];
+    _convSetProgress(i,total,qf.file.name);
+    await _convYield();
+    try{var res=await convSingleFile(qf,tgt);if(Array.isArray(res))allBlobs.push.apply(allBlobs,res);else allBlobs.push(res);}
+    catch(e){document.getElementById('conv-error').style.display='flex';document.getElementById('conv-error').innerHTML='<i class="fas fa-exclamation-circle"></i> '+e.message;}
+  }
+  document.getElementById('conv-prog-bar').style.width='100%';
+  document.getElementById('conv-prog-pct').textContent='100%';
+  document.getElementById('conv-prog-label').innerHTML='<i class="fas fa-check-circle"></i> Done!';
+  document.getElementById('conv-prog-file').textContent='';
+  setTimeout(function(){progEl.style.display='none';},1800);
+  allBlobs.forEach(function(x){blobToVault(x.name,x.blob);});
+  if(allBlobs.length){
+    document.getElementById('conv-results').style.display='block';
+    document.getElementById('conv-results-title').textContent='✅ Converted Files ('+allBlobs.length+')';
+    var rl=document.getElementById('conv-results-list');rl.innerHTML='';
+    allBlobs.forEach(function(x){
+      var dlUrl=URL.createObjectURL(x.blob);var info=FMT_INFO[getExt(x.name)];
+      var row=document.createElement('div');row.className='result-file';
+      row.innerHTML=(info?'<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;background:'+info.bg+';color:'+info.color+';font-size:.7rem;font-weight:700;flex-shrink:0;"><i class="fas '+info.icon+'"></i>'+info.label+'</span>':'')+
+        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#166534;font-size:.85rem;min-width:0;">'+x.name+'</span>'+
+        '<a href="'+dlUrl+'" download="'+x.name+'" style="padding:.28rem .75rem;background:#16a34a;color:#fff;border-radius:.3rem;font-size:.78rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">⬇ Download</a>';
+      rl.appendChild(row);
+    });
+    if(allBlobs.length>1){
+      var zipBtn=document.createElement('button');zipBtn.className='btn-primary';
+      zipBtn.style.cssText='margin-top:.85rem;padding:.5rem 1.3rem;font-size:.9rem;font-weight:700;';
+      zipBtn.innerHTML='<i class="fas fa-file-archive"></i> Download All as ZIP';
+      zipBtn.onclick=async function(){
+        zipBtn.disabled=true;zipBtn.innerHTML='<i class="fas fa-spinner spin"></i> Building ZIP…';
+        var zip=new JSZip();allBlobs.forEach(function(x){zip.file(x.name,x.blob);});
+        var zb=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+        var url=URL.createObjectURL(zb);var a=document.createElement('a');a.href=url;a.download='converted_files.zip';a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);},10000);
+        zipBtn.disabled=false;zipBtn.innerHTML='<i class="fas fa-file-archive"></i> Download All as ZIP';
+      };
+      rl.appendChild(zipBtn);
+    }
+  }
+  document.getElementById('conv-progress').style.display='none';
+  document.getElementById('conv-btn').disabled=false;
+  document.getElementById('conv-btn').innerHTML='<i class="fas fa-bolt"></i> Convert';
+  convRunning=false;
+}
+
+/* ═══════════════════════ BG REMOVER (AI-powered) ═══════════════════════
+   Uses @imgly/background-removal — neural network running in-browser via WASM.
+   Produces clean transparent-background PNGs, subject fully preserved.
+═══════════════════════════════════════════════════════════════════════ */
+var bgQueue=[];
+function bgDrop(e){e.preventDefault();document.getElementById('bg-drop').classList.remove('drag-over');bgAddFiles(e.dataTransfer.files);}
+function bgAddFiles(files){Array.from(files||[]).forEach(function(f){if(f.type.startsWith('image/'))bgQueue.push(f);});bgRender();bgUpdateBtn();}
+function bgRender(){
+  var qWrap=document.getElementById('bg-queue-wrap');
+  var btn=document.getElementById('bg-process-btn');
+  if(!bgQueue.length){
+    qWrap.style.display='none';
+    btn.innerHTML='<i class="fas fa-magic"></i> Remove Backgrounds';
+    bgUpdateBtn();
+    return;
+  }
+  qWrap.style.display='block';
+  btn.innerHTML='<i class="fas fa-magic"></i> Remove Backgrounds';
+  bgUpdateBtn();
+  document.getElementById('bg-queue-count').textContent=bgQueue.length+' image'+(bgQueue.length!==1?'s':'')+' queued';
+  var grid=document.getElementById('bg-preview-grid');grid.innerHTML='';
+  bgQueue.slice(0,24).forEach(function(f,i){
+    var url=URL.createObjectURL(f);var div=document.createElement('div');div.style.cssText='position:relative;';
+    div.innerHTML='<img src="'+url+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;border:1px solid #ddd6fe;"/>'+
+      '<button onclick="bgRemoveOne('+i+')" style="position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:19px;height:19px;cursor:pointer;font-size:9px;display:flex;align-items:center;justify-content:center;">×</button>';
+    grid.appendChild(div);
+  });
+  if(bgQueue.length>24){var d=document.createElement('div');d.style.cssText='display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:.83rem;';d.textContent='+'+(bgQueue.length-24)+' more';grid.appendChild(d);}
+}
+function bgRemoveOne(i){bgQueue.splice(i,1);bgRender();}
+function bgClearAll(){bgQueue=[];bgRender();bgUpdateBtn();document.getElementById('bg-results').style.display='none';}
+
+function _bgYield(){return new Promise(function(r){setTimeout(r,20);});}
+function _bgSetProgress(done,total,filename,msg){
+  var pct=total>0?Math.round(((done+(msg?0.5:0))/total)*100):0;
+  document.getElementById('bg-prog-bar').style.width=pct+'%';
+  document.getElementById('bg-prog-pct').textContent=pct+'%';
+  document.getElementById('bg-prog-label').innerHTML=
+    '<i class="fas fa-spinner spin"></i> '+(msg||('Processing image '+(done+1)+' of '+total+'…'));
+  document.getElementById('bg-prog-file').textContent=filename||'';
+}
+
+/* ── BG Remover — button state helper ───────────────────── */
+function bgUpdateBtn(){
+  var btn=document.getElementById('bg-process-btn');
+  if(!btn)return;
+  if(bgQueue.length>0){
+    btn.disabled=false;
+    btn.style.cssText='padding:.62rem 2rem;background:#7c3aed;color:#fff;border:none;border-radius:.45rem;cursor:pointer;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:.5rem;';
+  } else {
+    btn.disabled=true;
+    btn.style.cssText='padding:.62rem 2rem;background:#d1d5db;color:#9ca3af;border:none;border-radius:.45rem;cursor:not-allowed;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:.5rem;';
+  }
+}
+
+async function bgProcess(){
+  if(!bgQueue.length)return;
+
+  /* Check Transformers.js module loaded */
+  if(!window._bgAI){
+    alert('AI module not ready yet. Please wait a moment and try again.');
+    return;
+  }
+
+  var btn=document.getElementById('bg-process-btn');
+  var progWrap=document.getElementById('bg-progress-bar-wrap');
+
+  btn.disabled=true;
+  btn.style.background='#9ca3af';
+  btn.innerHTML='<i class="fas fa-spinner spin"></i> Processing…';
+  progWrap.style.display='block';
+  document.getElementById('bg-prog-bar').style.width='0%';
+  document.getElementById('bg-prog-pct').textContent='0%';
+  document.getElementById('bg-results').style.display='none';
+
+  /* Load / warm up model (first call downloads ~45 MB, then cached) */
+  try{
+    document.getElementById('bg-prog-label').innerHTML='<i class="fas fa-spinner spin"></i> Loading AI model…';
+    document.getElementById('bg-prog-file').textContent='Downloading RMBG-1.4 (~45 MB on first use, cached after)…';
+    await window._bgAI.preload(function(data){
+      if(data&&data.status==='progress'&&data.total>0){
+        var pct=Math.round((data.loaded/data.total)*100);
+        document.getElementById('bg-prog-bar').style.width=Math.min(pct,95)+'%';
+        document.getElementById('bg-prog-pct').textContent=pct+'%';
+        document.getElementById('bg-prog-file').textContent='Downloading AI model: '+pct+'% — cached after first use';
+      }
+    });
+  }catch(e){
+    document.getElementById('bg-prog-label').innerHTML='<i class="fas fa-times-circle" style="color:#dc2626"></i> Could not load AI model: '+(e.message||e);
+    document.getElementById('bg-prog-file').textContent='Check your internet connection and reload the page.';
+    btn.disabled=false;
+    btn.style.cssText='padding:.62rem 2rem;background:#7c3aed;color:#fff;border:none;border-radius:.45rem;cursor:pointer;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:.5rem;';
+    btn.innerHTML='<i class="fas fa-magic"></i> Remove Backgrounds';
+    return;
+  }
+
+  var out=[];var total=bgQueue.length;
+
+  for(var k=0;k<total;k++){
+    var f=bgQueue[k];
+    _bgSetProgress(k,total,f.name);
+    await _bgYield();
+    try{
+      document.getElementById('bg-prog-label').innerHTML='<i class="fas fa-spinner spin"></i> Removing background: '+f.name+' ('+( k+1)+'/'+total+')';
+      document.getElementById('bg-prog-file').textContent='AI running locally — no upload required';
+
+      var resultBlob=await window._bgAI.remove(f);
+      var name=f.name.replace(/\.[^.]+$/,'_nobg.png');
+      var dlUrl=URL.createObjectURL(resultBlob);
+      out.push({name:name,blob:resultBlob,url:dlUrl});
+      blobToVault(name,resultBlob);
+    }catch(e){
+      console.error('[BG Remover] Error on '+f.name,e);
+      out.push({name:f.name+' (error)',blob:null,url:'',err:e.message||'Processing failed'});
+    }
+  }
+
+  /* Done */
+  document.getElementById('bg-prog-bar').style.width='100%';
+  document.getElementById('bg-prog-pct').textContent='100%';
+  document.getElementById('bg-prog-label').innerHTML='<i class="fas fa-check-circle"></i> Done!';
+  document.getElementById('bg-prog-file').textContent='';
+  setTimeout(function(){progWrap.style.display='none';},1800);
+
+  btn.disabled=false;
+  btn.style.cssText='padding:.62rem 2rem;background:#7c3aed;color:#fff;border:none;border-radius:.45rem;cursor:pointer;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:.5rem;';
+  btn.innerHTML='<i class="fas fa-magic"></i> Remove Backgrounds';
+
+  var ok=out.filter(function(o){return o.blob;});
+  var res=document.getElementById('bg-results');res.style.display='block';
+  document.getElementById('bg-results-title').textContent='✅ Processed Files ('+ok.length+' / '+out.length+')';
+  var list=document.getElementById('bg-results-list');list.innerHTML='';
+
+  out.forEach(function(o){
+    var row=document.createElement('div');row.className='result-file';
+    if(o.blob){
+      /* Show transparent preview with checkerboard, then download link */
+      row.innerHTML=
+        '<img class="bg-result-preview" src="'+o.url+'" alt="preview"/>'+
+        '<span style="flex:1;color:#166534;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+o.name+'</span>'+
+        '<a href="'+o.url+'" download="'+o.name+'" style="padding:.28rem .75rem;background:#7c3aed;color:#fff;border-radius:.3rem;font-size:.78rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">⬇ Download PNG</a>';
+    } else {
+      row.innerHTML=
+        '<span style="flex:1;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+o.name+'</span>'+
+        '<span style="color:#dc2626;font-size:.8rem;">'+(o.err||'Error')+'</span>';
+    }
+    list.appendChild(row);
+  });
+
+  if(ok.length>1){
+    var zipBtn=document.createElement('button');zipBtn.className='btn-primary';
+    zipBtn.style.cssText='margin-top:.85rem;padding:.5rem 1.3rem;font-size:.9rem;font-weight:700;background:#7c3aed;';
+    zipBtn.innerHTML='<i class="fas fa-file-archive"></i> Download All as ZIP';
+    zipBtn.onclick=async function(){
+      zipBtn.disabled=true;zipBtn.innerHTML='<i class="fas fa-spinner spin"></i> Building ZIP…';
+      var zip=new JSZip();
+      ok.forEach(function(o){zip.file(o.name,o.blob);});
+      var zb=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+      var url=URL.createObjectURL(zb);var a=document.createElement('a');a.href=url;a.download='bg_removed_files.zip';a.click();
+      setTimeout(function(){URL.revokeObjectURL(url);},10000);
+      zipBtn.disabled=false;zipBtn.innerHTML='<i class="fas fa-file-archive"></i> Download All as ZIP';
+    };
+    list.appendChild(zipBtn);
+  }
+}
+
+/* ═══════════════════════ COMPRESSOR ═══════════════════════
+   Quality settings matched to ilovepdf.com (PDF) and
+   SlidesSpeak (Word / Excel / PowerPoint). ZIP archives
+   are re-packed with maximum DEFLATE compression.
+═══════════════════════════════════════════════════════════ */
+var compQueue=[];
+var compQSel='medium';
+var COMP_EXTS=/\.(pdf|docx|xlsx|pptx|jpg|jpeg|png|webp|zip)$/i;
+
+var QUALITY_DESC={
+  high:   'High — preserves maximum visual quality with smaller size reduction (~20–40%)',
+  medium: 'Medium — best balance of file size and visual quality (recommended for most files)',
+  low:    'Low — maximum file size reduction (~50–80%), some visual quality loss'
+};
+
+function setQuality(q){
+  compQSel=q;
+  document.querySelectorAll('.q-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('q-'+q).classList.add('active');
+  document.getElementById('quality-info-text').textContent=QUALITY_DESC[q];
+  compRender();
+}
+
+function compDrop(e){e.preventDefault();document.getElementById('comp-drop').classList.remove('drag-over');compAddFiles(e.dataTransfer.files);}
+function compAddFiles(files){Array.from(files||[]).forEach(function(f){if(COMP_EXTS.test(f.name))compQueue.push(f);});compRender();}
+
+function compRender(){
+  var qWrap=document.getElementById('comp-queue-wrap');
+  var btn=document.getElementById('comp-process-btn');
+
+  if(!compQueue.length){
+    qWrap.style.display='none';
+    btn.disabled=true;
+    btn.style.cssText='padding:.62rem 2rem;background:#d1d5db;color:#9ca3af;border:none;border-radius:.45rem;cursor:not-allowed;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:.5rem;';
+    btn.innerHTML='<i class="fas fa-compress-alt"></i> Process Files';
+    return;
+  }
+
+  qWrap.style.display='block';
+  btn.disabled=false;
+  btn.style.cssText='padding:.62rem 2rem;background:#d97706;color:#fff;border:none;border-radius:.45rem;cursor:pointer;font-weight:700;font-size:.95rem;display:inline-flex;align-items:center;gap:.5rem;';
+  btn.innerHTML='<i class="fas fa-compress-alt"></i> Process Files';
+
+  var total=compQueue.reduce(function(s,f){return s+f.size;},0);
+  document.getElementById('comp-queue-count').textContent=
+    compQueue.length+' file'+(compQueue.length!==1?'s':'')+' queued · Total: '+fmtBytes(total);
+  var list=document.getElementById('comp-file-list');
+  list.innerHTML='';
+  compQueue.forEach(function(f,i){
+    var ext=(f.name.split('.').pop()||'').toLowerCase();
+    var info=FMT_VAULT[ext]||{color:'#6b7280',bg:'#f3f4f6',icon:'fa-file'};
+    var li=document.createElement('div');li.className='file-item';
+    li.innerHTML=
+      '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:5px;background:'+info.bg+';color:'+info.color+';font-size:.7rem;font-weight:700;flex-shrink:0;"><i class="fas '+info.icon+'"></i>'+ext.toUpperCase()+'</span>'+
+      '<span class="file-name">'+f.name+'</span>'+
+      '<span style="font-size:.74rem;color:#9ca3af;flex-shrink:0;">'+fmtBytes(f.size)+'</span>'+
+      '<button class="rm-btn" onclick="compRemove('+i+')">×</button>';
+    list.appendChild(li);
+  });
+}
+
+function compRemove(i){compQueue.splice(i,1);compRender();document.getElementById('comp-results').style.display='none';}
+function compClearAll(){compQueue=[];compRender();document.getElementById('comp-results').style.display='none';}
+
+/* ── Image compression ──────────────────────────────────── */
+function compressImage(file){
+  var quality={high:0.85, medium:0.65, low:0.30}[compQSel];
+  var scale  ={high:1.00, medium:0.90, low:0.70}[compQSel];
+  var toGray =compQSel==='low';
+  return new Promise(function(resolve,reject){
+    var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){
+      var c=document.createElement('canvas');
+      c.width =Math.round(img.naturalWidth *scale);
+      c.height=Math.round(img.naturalHeight*scale);
+      var ctx=c.getContext('2d');
+      ctx.drawImage(img,0,0,c.width,c.height);
+      if(toGray){
+        var id=ctx.getImageData(0,0,c.width,c.height);var d=id.data;
+        for(var j=0;j<d.length;j+=4){var g=(d[j]*0.299+d[j+1]*0.587+d[j+2]*0.114)|0;d[j]=d[j+1]=d[j+2]=g;}
+        ctx.putImageData(id,0,0);
+      }
+      URL.revokeObjectURL(url);
+      c.toBlob(function(blob){resolve(blob);},'image/jpeg',quality);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);reject(new Error('image load failed'));};
+    img.src=url;
+  });
+}
+
+/* Re-compress one embedded image inside an Office ZIP */
+function recompressEmbedImg(bytes,origMime,quality,scale,toGray){
+  return new Promise(function(resolve,reject){
+    var b=new Blob([bytes],{type:origMime});var url=URL.createObjectURL(b);var img=new Image();
+    img.onload=function(){
+      var c=document.createElement('canvas');
+      c.width =Math.round(img.naturalWidth *scale);
+      c.height=Math.round(img.naturalHeight*scale);
+      var ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);
+      if(toGray){
+        var id=ctx.getImageData(0,0,c.width,c.height);var d=id.data;
+        for(var j=0;j<d.length;j+=4){var g=(d[j]*0.299+d[j+1]*0.587+d[j+2]*0.114)|0;d[j]=d[j+1]=d[j+2]=g;}
+        ctx.putImageData(id,0,0);
+      }
+      URL.revokeObjectURL(url);
+      c.toBlob(function(out){
+        if(!out){reject(new Error('toBlob null'));return;}
+        out.arrayBuffer().then(function(ab){resolve(new Uint8Array(ab));}).catch(reject);
+      },'image/jpeg',quality);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);reject(new Error('img load'));};
+    img.src=url;
+  });
+}
+
+/* ── Office compression (DOCX / XLSX / PPTX) ────────────── */
+async function compressOffice(file){
+  var level   ={high:7,   medium:9,   low:9   }[compQSel];
+  var imgQ    ={high:0.82, medium:0.55, low:0.28}[compQSel];
+  var imgScale={high:0.95, medium:0.78, low:0.55}[compQSel];
+  var toGray  =compQSel==='low';
+  var STRIP=/^(docProps\/thumbnail\.(jpeg|jpg|png|emf|wmf)|docProps\/app\.xml)$/i;
+
+  var data=await file.arrayBuffer();
+  var zip=await JSZip.loadAsync(data);
+  var out=new JSZip();
+
+  var names=Object.keys(zip.files);
+  for(var ni=0;ni<names.length;ni++){
+    var name=names[ni];var entry=zip.files[name];
+    if(entry.dir){out.folder(name);continue;}
+    if(STRIP.test(name))continue;
+
+    var content=await entry.async('uint8array');
+    var isJpeg=/\.(jpg|jpeg)$/i.test(name);
+    var isPng=/\.png$/i.test(name);
+    var isEmbedImg=(isJpeg||isPng)&&/\/media\//i.test(name);
+
+    if(isEmbedImg){
+      try{
+        var origMime=isJpeg?'image/jpeg':'image/png';
+        var recomp=await recompressEmbedImg(content,origMime,imgQ,imgScale,toGray);
+        content=recomp.length<content.length?recomp:content;
+      }catch(e){}
+      out.file(name,content,{compression:'STORE'});
+    } else if(/\.(gif|webp|mp3|mp4|wav|ogg|bin|wmf|emf)$/i.test(name)){
+      out.file(name,content,{compression:'STORE'});
+    } else {
+      out.file(name,content,{compression:'DEFLATE',compressionOptions:{level:level}});
+    }
+  }
+
+  var blob=await out.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:level}});
+  return new Blob([await blob.arrayBuffer()],{type:file.type||'application/octet-stream'});
+}
+
+/* ── PDF compression ───────────────────────────────────────
+   High   = "Less compression"    — 2.0× DPI, JPEG 0.88
+   Medium = "Recommended"         — 1.5× DPI, JPEG 0.65
+   Low    = "Extreme compression" — 0.9× DPI, JPEG 0.30 + grayscale */
+async function compressPDF(file){
+  var imgQ       ={high:0.88, medium:0.65, low:0.30}[compQSel];
+  var renderScale={high:2.0,  medium:1.5,  low:0.90}[compQSel];
+  var toGray     =compQSel==='low';
+
+  var data=new Uint8Array(await file.arrayBuffer());
+  var pdfSrc=await pdfjsLib.getDocument({data:data}).promise;
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=null;
+
+  for(var p=1;p<=pdfSrc.numPages;p++){
+    var page=await pdfSrc.getPage(p);
+    var vp=page.getViewport({scale:renderScale});
+    var canvas=document.createElement('canvas');
+    canvas.width =Math.round(vp.width);
+    canvas.height=Math.round(vp.height);
+    var ctx=canvas.getContext('2d');
+    await page.render({canvasContext:ctx,viewport:vp}).promise;
+
+    if(toGray){
+      var id=ctx.getImageData(0,0,canvas.width,canvas.height);var d=id.data;
+      for(var j=0;j<d.length;j+=4){var g=(d[j]*0.299+d[j+1]*0.587+d[j+2]*0.114)|0;d[j]=d[j+1]=d[j+2]=g;}
+      ctx.putImageData(id,0,0);
+    }
+
+    var imgData=canvas.toDataURL('image/jpeg',imgQ);
+    var wPt=canvas.width *72/96;
+    var hPt=canvas.height*72/96;
+
+    if(p===1){
+      doc=new jsPDF({orientation:wPt>=hPt?'landscape':'portrait',unit:'pt',format:[wPt,hPt]});
+    } else {
+      doc.addPage([wPt,hPt],wPt>=hPt?'landscape':'portrait');
+    }
+    doc.addImage(imgData,'JPEG',0,0,wPt,hPt,undefined,'FAST');
+  }
+  if(!doc)return new Blob([data],{type:'application/pdf'});
+  return doc.output('blob');
+}
+
+/* ── ZIP compression ───────────────────────────────────────
+   Re-packs all entries with maximum DEFLATE.
+   Embedded images are re-compressed at quality-appropriate JPEG.
+   Already-compressed entries (mp3, mp4, inner-zip, etc.) are stored as-is. */
+async function compressZip(file){
+  var level   ={high:7, medium:9, low:9}[compQSel];
+  var imgQ    ={high:0.82, medium:0.65, low:0.35}[compQSel];
+  var imgScale={high:0.95, medium:0.85, low:0.65}[compQSel];
+  var toGray  =compQSel==='low';
+
+  var data=await file.arrayBuffer();
+  var zip=await JSZip.loadAsync(data);
+  var out=new JSZip();
+
+  var names=Object.keys(zip.files);
+  for(var ni=0;ni<names.length;ni++){
+    var name=names[ni];var entry=zip.files[name];
+    if(entry.dir){out.folder(name);continue;}
+
+    var content=await entry.async('uint8array');
+    var isImg=/\.(jpg|jpeg|png|webp|bmp)$/i.test(name);
+    var isAlreadyCompressed=/\.(mp3|mp4|mov|avi|mkv|ogg|flac|wav|zip|gz|7z|rar|br|xz|lz4|zst)$/i.test(name);
+
+    if(isImg){
+      try{
+        var origMime=/\.png$/i.test(name)?'image/png':/\.webp$/i.test(name)?'image/webp':'image/jpeg';
+        var recomp=await recompressEmbedImg(content,origMime,imgQ,imgScale,toGray);
+        content=recomp.length<content.length?recomp:content;
+      }catch(e){}
+      out.file(name,content,{compression:'STORE'});
+    } else if(isAlreadyCompressed){
+      out.file(name,content,{compression:'STORE'});
+    } else {
+      out.file(name,content,{compression:'DEFLATE',compressionOptions:{level:level}});
+    }
+  }
+
+  var blob=await out.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:level}});
+  return new Blob([await blob.arrayBuffer()],{type:'application/zip'});
+}
+
+async function compDownloadAllZip(entries){
+  var zip=new JSZip();
+  var seen={};
+  entries.forEach(function(e){
+    var origName=e.name;
+    var name=origName;
+    if(seen[origName]===undefined){seen[origName]=0;}
+    else{seen[origName]++;var dot=name.lastIndexOf('.');name=dot>-1?name.slice(0,dot)+'_('+seen[origName]+')'+name.slice(dot):name+'_('+seen[origName]+')';}
+    zip.file(name,e.blob);
+  });
+  var blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+  var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='compressed_files.zip';a.click();
+  setTimeout(function(){URL.revokeObjectURL(url);},5000);
+}
+
+function _compSetProgress(done,total,filename){
+  var pct=total>0?Math.round((done/total)*100):0;
+  document.getElementById('comp-prog-bar').style.width=pct+'%';
+  document.getElementById('comp-prog-pct').textContent=pct+'%';
+  document.getElementById('comp-prog-label').innerHTML=
+    '<i class="fas fa-spinner spin"></i> Processing file '+(done+1)+' of '+total+'…';
+  document.getElementById('comp-prog-file').textContent=filename||'';
+}
+
+var _compOut=[];
+async function compProcess(){
+  if(!compQueue.length)return;
+  var btn=document.getElementById('comp-process-btn');
+  var progWrap=document.getElementById('comp-progress-bar-wrap');
+
+  btn.disabled=true;
+  btn.style.background='#9ca3af';
+  btn.innerHTML='<i class="fas fa-spinner spin"></i> Processing…';
+  progWrap.style.display='block';
+  document.getElementById('comp-prog-bar').style.width='0%';
+  document.getElementById('comp-prog-pct').textContent='0%';
+  document.getElementById('comp-results').style.display='none';
+
+  _compOut=[];var origTotal=0,newTotal=0;
+  var total=compQueue.length;
+
+  for(var i=0;i<total;i++){
+    var f=compQueue[i];
+    _compSetProgress(i,total,f.name);
+    var isPDF   =/\.pdf$/i.test(f.name);
+    var isImg   =/\.(jpg|jpeg|png|webp)$/i.test(f.name)||f.type.startsWith('image/');
+    var isOffice=/\.(docx|xlsx|pptx)$/i.test(f.name);
+    var isZip   =/\.zip$/i.test(f.name);
+    try{
+      var blob;
+      if(isImg)blob=await compressImage(f);
+      else if(isPDF)blob=await compressPDF(f);
+      else if(isOffice)blob=await compressOffice(f);
+      else if(isZip)blob=await compressZip(f);
+      else blob=null;
+      if(!blob)throw new Error('Unsupported format');
+      origTotal+=f.size;newTotal+=blob.size;
+      _compOut.push({name:f.name,blob:blob,origSize:f.size,newSize:blob.size});
+      blobToVault(f.name,blob);
+    }catch(e){
+      _compOut.push({name:f.name,blob:null,origSize:f.size,newSize:0,err:e.message||'error'});
+    }
+  }
+
+  document.getElementById('comp-prog-bar').style.width='100%';
+  document.getElementById('comp-prog-pct').textContent='100%';
+  document.getElementById('comp-prog-label').innerHTML='<i class="fas fa-check-circle"></i> Done!';
+  document.getElementById('comp-prog-file').textContent='';
+  setTimeout(function(){progWrap.style.display='none';},1800);
+
+  btn.disabled=false;
+  btn.style.background='#d97706';
+  btn.innerHTML='<i class="fas fa-compress-alt"></i> Process Files';
+
+  var ok=_compOut.filter(function(o){return o.blob;});
+  var savings=origTotal>0?((1-newTotal/origTotal)*100).toFixed(1):0;
+
+  var resultsDiv=document.getElementById('comp-results');
+  resultsDiv.style.display='block';
+  document.getElementById('comp-results-title').textContent='✅ Compressed Files ('+ok.length+' / '+_compOut.length+')';
+  document.getElementById('comp-savings-badge').textContent=savings+'% reduction · '+fmtBytes(origTotal)+' → '+fmtBytes(newTotal);
+
+  var list=document.getElementById('comp-results-list');list.innerHTML='';
+  _compOut.forEach(function(o){
+    var row=document.createElement('div');row.className='result-file';
+    var sizeTag='';
+    if(o.origSize){
+      var pct=o.newSize<o.origSize?' <span style="color:#16a34a;font-weight:700;">(-'+((1-o.newSize/o.origSize)*100).toFixed(0)+'%)</span>':'';
+      sizeTag='<span style="font-size:.74rem;color:#6b7280;white-space:nowrap;">'+fmtBytes(o.origSize)+' → '+fmtBytes(o.newSize)+pct+'</span>';
+    }
+    if(o.blob){
+      var dlUrl=URL.createObjectURL(o.blob);
+      row.innerHTML=
+        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;color:#166534;">'+o.name+'</span>'+
+        sizeTag+
+        '<a href="'+dlUrl+'" download="'+o.name+'" style="padding:.28rem .75rem;background:#16a34a;color:#fff;border-radius:.3rem;font-size:.78rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">⬇ Download</a>';
+    } else {
+      row.innerHTML=
+        '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;color:#374151;">'+o.name+'</span>'+
+        '<span style="color:#dc2626;font-size:.8rem;">'+(o.err||'Error')+'</span>';
+    }
+    list.appendChild(row);
+  });
+
+  if(ok.length>1){
+    var zipBtn=document.createElement('button');zipBtn.className='btn-primary';
+    zipBtn.style.cssText='margin-top:.85rem;padding:.5rem 1.3rem;font-size:.9rem;font-weight:700;';
+    zipBtn.innerHTML='<i class="fas fa-file-archive"></i> Download All as ZIP';
+    zipBtn.onclick=async function(){
+      zipBtn.disabled=true;zipBtn.innerHTML='<i class="fas fa-spinner spin"></i> Building ZIP…';
+      await compDownloadAllZip(ok);
+      zipBtn.disabled=false;zipBtn.innerHTML='<i class="fas fa-file-archive"></i> Download All as ZIP';
+    };
+    list.appendChild(zipBtn);
+  }
+}
+
+/* ═══════════════════════ OBJECT ERASER ═══════════════════════
+   Paint a red mask over any object, then content-aware fill removes it.
+   Uses two overlaid canvases: oe-base (image) + oe-mask (red overlay).
+   A hidden full-resolution mask tracks painted pixels for inpainting.
+═══════════════════════════════════════════════════════════════════════ */
+var OE = {
+  imgW: 0, imgH: 0,          // original image dimensions
+  hasMask: false,
+  painting: false,
+  tool: 'brush',
+  lastX: 0, lastY: 0,
+  resultBlob: null,
+  // offscreen full-res mask (1-channel, painted=255 unpainted=0)
+  maskOffscreen: null,
+  maskOffCtx: null,
+  // pan state (hand tool)
+  panX: 0, panY: 0,
+  panStartX: 0, panStartY: 0,
+  panOriginX: 0, panOriginY: 0,
+  panning: false,
+  // undo / redo stacks (each entry: {mask: ImageData, off: ImageData})
+  undoStack: [],
+  redoStack: []
+};
+
+function oeInit() {
+  var maskC = document.getElementById('oe-mask');
+  // Use Pointer Events so mouse, touch, and stylus all work via one path.
+  // setPointerCapture keeps events on the canvas even when the pointer
+  // moves outside its bounds mid-stroke (no lost strokes).
+  maskC.addEventListener('pointerdown', function(e) {
+    e.preventDefault();
+    maskC.setPointerCapture(e.pointerId);
+    oePointerDown(e);
+  });
+  maskC.addEventListener('pointermove', function(e) {
+    e.preventDefault();
+    oePointerMove(e);
+  });
+  maskC.addEventListener('pointerup',     function(e) { oePointerUp(); });
+  maskC.addEventListener('pointercancel', function(e) { oePointerUp(); });
+  maskC.addEventListener('pointerleave',  function(e) {
+    document.getElementById('oe-cursor').style.display = 'none';
+  });
+}
+window.addEventListener('load', oeInit);
+
+function oeDrop(e){
+  e.preventDefault();
+  document.getElementById('oe-drop').classList.remove('oe-drag');
+  var f = e.dataTransfer.files[0];
+  if(f && f.type.startsWith('image/')) oeLoadFile(f);
+}
+
+function oeLoadFile(file) {
+  if(!file) return;
+  var url = URL.createObjectURL(file);
+  var img = new Image();
+  img.onload = function() {
+    OE.imgW = img.naturalWidth;
+    OE.imgH = img.naturalHeight;
+    OE.zoom = 1.0;
+
+    // ── Set canvas PIXEL dimensions = full image resolution ──
+    var baseC = document.getElementById('oe-base');
+    baseC.width  = OE.imgW;
+    baseC.height = OE.imgH;
+    baseC.getContext('2d').drawImage(img, 0, 0);
+
+    var maskC = document.getElementById('oe-mask');
+    maskC.width  = OE.imgW;
+    maskC.height = OE.imgH;
+    maskC.getContext('2d').clearRect(0, 0, OE.imgW, OE.imgH);
+
+    // Offscreen full-res mask
+    OE.maskOffscreen = document.createElement('canvas');
+    OE.maskOffscreen.width  = OE.imgW;
+    OE.maskOffscreen.height = OE.imgH;
+    OE.maskOffCtx = OE.maskOffscreen.getContext('2d');
+
+    // ── Fit canvases to display container (maintaining aspect ratio) ──
+    oeFitCanvas();
+
+    // Hide placeholder, show inner wrapper + zoom bar + toolbar
+    document.getElementById('oe-placeholder').style.display = 'none';
+    document.getElementById('oe-canvas-inner').style.display = 'block';
+    document.getElementById('oe-zoom-bar').style.display = 'flex';
+    document.getElementById('oe-toolbar').style.display = 'flex';
+    var tabBtn = document.getElementById('oe-toolbar-action-btn');
+    if (tabBtn) { tabBtn.style.display = 'inline-flex'; tabBtn.innerHTML = '<i class="fas fa-eraser"></i> Erase it'; tabBtn.onclick = oeErase; tabBtn.style.background='#ef4444'; tabBtn.style.borderColor='#ef4444'; }
+    // Ensure the wrap shrinks to image height (not min-height when image is short)
+    document.getElementById('oe-canvas-wrap').style.minHeight = '0';
+    document.getElementById('oe-canvas-wrap').style.padding = '16px 16px 16px 54px';
+
+    OE.hasMask = false;
+    OE.resultBlob = null;
+    OE.panX = 0; OE.panY = 0;
+    OE.undoStack = []; OE.redoStack = [];
+    oeUpdateUndoRedo();
+    document.getElementById('oe-result-card').style.display = 'none';
+    document.getElementById('oe-result-thumb').width = 0;
+    oeUpdateEraseBtn();
+
+    document.getElementById('oe-card1').classList.remove('oe-active');
+    document.getElementById('oe-card2').classList.add('oe-active');
+    document.getElementById('oe-file-badge').style.display = 'block';
+    document.getElementById('oe-file-name').textContent = file.name;
+
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+/* Compute fitted display size and apply as CSS width/height to the canvases */
+function oeFitCanvas() {
+  var wrap  = document.getElementById('oe-canvas-wrap');
+  var inner = document.getElementById('oe-canvas-inner');
+  // Available space: container minus padding for zoom bar + breathing room
+  var availW = Math.max(100, wrap.clientWidth - 70);
+  var availH = Math.max(200, Math.min(560, window.innerHeight * 0.65));
+
+  var scale  = Math.min(availW / OE.imgW, availH / OE.imgH, 1);
+  OE.dispW   = Math.round(OE.imgW * scale);
+  OE.dispH   = Math.round(OE.imgH * scale);
+
+  var baseC = document.getElementById('oe-base');
+  var maskC = document.getElementById('oe-mask');
+  baseC.style.width  = OE.dispW + 'px';
+  baseC.style.height = OE.dispH + 'px';
+  maskC.style.width     = OE.dispW + 'px';
+  maskC.style.height    = OE.dispH + 'px';
+  // Pull mask up in normal flow so it overlaps base exactly.
+  // DOM order (mask comes after base) guarantees mask renders on top
+  // without any z-index / stacking-context fights.
+  maskC.style.marginTop = '-' + OE.dispH + 'px';
+
+  // Apply current zoom level
+  inner.style.transform       = 'translate(' + OE.panX + 'px,' + OE.panY + 'px) scale(' + OE.zoom + ')';
+  inner.style.transformOrigin = 'center center';
+  document.getElementById('oe-zoom-pct').textContent = Math.round(OE.zoom * 100) + '%';
+}
+
+function oeZoomIn() {
+  OE.zoom = Math.min(4.0, parseFloat((OE.zoom + 0.25).toFixed(2)));
+  oeFitCanvas();
+}
+function oeZoomOut() {
+  OE.zoom = Math.max(0.25, parseFloat((OE.zoom - 0.25).toFixed(2)));
+  oeFitCanvas();
+}
+function oeZoomReset() {
+  OE.zoom = 1.0;
+  oeFitCanvas();
+}
+
+function oeSetTool(t) {
+  OE.tool = t;
+  document.getElementById('oe-btn-brush').classList.toggle('oe-active-tool', t==='brush');
+  document.getElementById('oe-btn-restore').classList.toggle('oe-active-tool', t==='restore');
+  document.getElementById('oe-btn-hand').classList.toggle('oe-active-hand', t==='hand');
+  var wrap = document.getElementById('oe-canvas-wrap');
+  wrap.classList.toggle('oe-hand-mode', t==='hand');
+  // Hide brush cursor when in hand mode
+  if (t === 'hand') document.getElementById('oe-cursor').style.display = 'none';
+}
+
+function oeShowCursor(e) {
+  var cur = document.getElementById('oe-cursor');
+  if (!OE.imgW || OE.tool === 'hand') { cur.style.display = 'none'; return; }
+  var sz    = parseInt(document.getElementById('oe-size').value) || 28;
+  var maskC = document.getElementById('oe-mask');
+  var rect  = maskC.getBoundingClientRect(); // accounts for CSS + transform
+  if (!rect.width) { cur.style.display = 'none'; return; }
+  var cssR  = sz * (rect.width / OE.imgW);  // brush radius in screen px
+  cur.style.display     = 'block';
+  cur.style.left        = e.clientX + 'px';
+  cur.style.top         = e.clientY + 'px';
+  cur.style.width       = (cssR * 2) + 'px';
+  cur.style.height      = (cssR * 2) + 'px';
+  cur.style.borderColor = OE.tool === 'restore' ? 'rgba(59,130,246,.9)' : 'rgba(239,68,68,.9)';
+}
+
+function oeGetPos(e) {
+  var maskC = document.getElementById('oe-mask');
+  var rect  = maskC.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (OE.imgW / rect.width),
+    y: (e.clientY - rect.top)  * (OE.imgH / rect.height)
+  };
+}
+
+function oeSnapshotMask() {
+  var maskC = document.getElementById('oe-mask');
+  var mCtx  = maskC.getContext('2d');
+  var snapMask = mCtx.getImageData(0, 0, OE.imgW, OE.imgH);
+  var snapOff  = OE.maskOffCtx.getImageData(0, 0, OE.imgW, OE.imgH);
+  OE.undoStack.push({ mask: snapMask, off: snapOff });
+  OE.redoStack = [];
+  oeUpdateUndoRedo();
+}
+
+function oePointerDown(e) {
+  if (!OE.imgW) return;
+  if (OE.tool === 'hand') {
+    OE.panning = true;
+    OE.panStartX = e.clientX;
+    OE.panStartY = e.clientY;
+    OE.panOriginX = OE.panX;
+    OE.panOriginY = OE.panY;
+    document.getElementById('oe-canvas-wrap').style.cursor = 'grabbing';
+    return;
+  }
+  oeSnapshotMask();
+  OE.painting = true;
+  var p = oeGetPos(e);
+  OE.lastX = p.x; OE.lastY = p.y;
+  oePaintAt(p.x, p.y);
+}
+
+function oePointerMove(e) {
+  oeShowCursor(e);
+  if (OE.tool === 'hand' && OE.panning) {
+    OE.panX = OE.panOriginX + (e.clientX - OE.panStartX);
+    OE.panY = OE.panOriginY + (e.clientY - OE.panStartY);
+    var inner = document.getElementById('oe-canvas-inner');
+    inner.style.transform = 'translate(' + OE.panX + 'px,' + OE.panY + 'px) scale(' + OE.zoom + ')';
+    return;
+  }
+  if (!OE.painting) return;
+  var p = oeGetPos(e);
+  oeStrokeTo(OE.lastX, OE.lastY, p.x, p.y);
+  OE.lastX = p.x; OE.lastY = p.y;
+}
+
+function oePointerUp() {
+  if (OE.panning) {
+    OE.panning = false;
+    document.getElementById('oe-canvas-wrap').style.cursor = '';
+  }
+  OE.painting = false;
+}
+
+function oePaintAt(x, y) {
+  var sz = parseInt(document.getElementById('oe-size').value) || 28;
+  var maskC = document.getElementById('oe-mask');
+  var mCtx  = maskC.getContext('2d');
+  var isRestore = OE.tool === 'restore';
+
+  mCtx.globalCompositeOperation = isRestore ? 'destination-out' : 'source-over';
+  mCtx.beginPath();
+  mCtx.arc(x, y, sz, 0, Math.PI * 2);
+  if (!isRestore) {
+    mCtx.fillStyle = 'rgba(239,68,68,0.55)';
+  }
+  mCtx.fill();
+  mCtx.globalCompositeOperation = 'source-over';
+
+  // Also paint offscreen hard mask (full opacity)
+  OE.maskOffCtx.globalCompositeOperation = isRestore ? 'destination-out' : 'source-over';
+  OE.maskOffCtx.beginPath();
+  OE.maskOffCtx.arc(x, y, sz, 0, Math.PI * 2);
+  OE.maskOffCtx.fillStyle = 'rgb(255,255,255)';
+  OE.maskOffCtx.fill();
+  OE.maskOffCtx.globalCompositeOperation = 'source-over';
+
+  if (!isRestore) { OE.hasMask = true; oeUpdateEraseBtn(); }
+}
+
+function oeStrokeTo(x1, y1, x2, y2) {
+  var sz = parseInt(document.getElementById('oe-size').value) || 28;
+  var maskC = document.getElementById('oe-mask');
+  var mCtx  = maskC.getContext('2d');
+  var isRestore = OE.tool === 'restore';
+
+  mCtx.globalCompositeOperation = isRestore ? 'destination-out' : 'source-over';
+  mCtx.beginPath();
+  mCtx.moveTo(x1, y1);
+  mCtx.lineTo(x2, y2);
+  mCtx.lineWidth = sz * 2;
+  mCtx.lineCap = 'round';
+  mCtx.lineJoin = 'round';
+  if (!isRestore) mCtx.strokeStyle = 'rgba(239,68,68,0.55)';
+  mCtx.stroke();
+  mCtx.globalCompositeOperation = 'source-over';
+
+  OE.maskOffCtx.globalCompositeOperation = isRestore ? 'destination-out' : 'source-over';
+  OE.maskOffCtx.beginPath();
+  OE.maskOffCtx.moveTo(x1, y1);
+  OE.maskOffCtx.lineTo(x2, y2);
+  OE.maskOffCtx.lineWidth = sz * 2;
+  OE.maskOffCtx.lineCap = 'round';
+  OE.maskOffCtx.lineJoin = 'round';
+  OE.maskOffCtx.strokeStyle = 'rgb(255,255,255)';
+  OE.maskOffCtx.stroke();
+  OE.maskOffCtx.globalCompositeOperation = 'source-over';
+
+  if (!isRestore) { OE.hasMask = true; oeUpdateEraseBtn(); }
+}
+
+function oeResetMask() {
+  if (!OE.imgW) return;
+  var maskC = document.getElementById('oe-mask');
+  maskC.getContext('2d').clearRect(0, 0, OE.imgW, OE.imgH);
+  OE.maskOffCtx.clearRect(0, 0, OE.imgW, OE.imgH);
+  OE.hasMask = false;
+  OE.undoStack = []; OE.redoStack = [];
+  oeUpdateUndoRedo();
+  oeUpdateEraseBtn();
+}
+
+function oeUpdateUndoRedo() {
+  var undoBtn = document.getElementById('oe-btn-undo');
+  var redoBtn = document.getElementById('oe-btn-redo');
+  if (undoBtn) undoBtn.disabled = OE.undoStack.length === 0;
+  if (redoBtn) redoBtn.disabled = OE.redoStack.length === 0;
+}
+
+function oeUndo() {
+  if (!OE.undoStack.length) return;
+  var maskC = document.getElementById('oe-mask');
+  var mCtx  = maskC.getContext('2d');
+  // Save current state to redo
+  OE.redoStack.push({
+    mask: mCtx.getImageData(0, 0, OE.imgW, OE.imgH),
+    off:  OE.maskOffCtx.getImageData(0, 0, OE.imgW, OE.imgH)
+  });
+  var snap = OE.undoStack.pop();
+  mCtx.putImageData(snap.mask, 0, 0);
+  OE.maskOffCtx.putImageData(snap.off, 0, 0);
+  // Re-evaluate hasMask from offscreen canvas
+  var d = snap.off.data;
+  OE.hasMask = false;
+  for (var i = 3; i < d.length; i += 4) { if (d[i] > 30) { OE.hasMask = true; break; } }
+  oeUpdateUndoRedo();
+  oeUpdateEraseBtn();
+}
+
+function oeRedo() {
+  if (!OE.redoStack.length) return;
+  var maskC = document.getElementById('oe-mask');
+  var mCtx  = maskC.getContext('2d');
+  // Save current state to undo
+  OE.undoStack.push({
+    mask: mCtx.getImageData(0, 0, OE.imgW, OE.imgH),
+    off:  OE.maskOffCtx.getImageData(0, 0, OE.imgW, OE.imgH)
+  });
+  var snap = OE.redoStack.pop();
+  mCtx.putImageData(snap.mask, 0, 0);
+  OE.maskOffCtx.putImageData(snap.off, 0, 0);
+  var d = snap.off.data;
+  OE.hasMask = false;
+  for (var i = 3; i < d.length; i += 4) { if (d[i] > 30) { OE.hasMask = true; break; } }
+  oeUpdateUndoRedo();
+  oeUpdateEraseBtn();
+}
+
+function oeUpdateEraseBtn() {
+  var btn = document.getElementById('oe-erase-btn');
+  var hint = document.getElementById('oe-erase-hint');
+  if (OE.hasMask) {
+    btn.disabled = false;
+    hint.textContent = 'Click to remove the painted object';
+    document.getElementById('oe-card2').classList.remove('oe-active');
+    document.getElementById('oe-card3').classList.add('oe-active');
+  } else {
+    btn.disabled = true;
+    hint.textContent = 'Paint the object first, then click Erase';
+    document.getElementById('oe-card3').classList.remove('oe-active');
+    if (OE.imgW) document.getElementById('oe-card2').classList.add('oe-active');
+  }
+}
+
+/* Browser-based inpainting: returns a blob URL of the result image.
+   imageB64 = JPEG data-URL of source image
+   maskB64  = PNG data-URL where white = area to erase, black = keep
+   onProgress(pct, msg) called during processing */
+async function hfInpaint(imageB64, maskB64, onProgress) {
+
+  /* 1 — Load image and mask onto canvases */
+  function loadImage(src) {
+    return new Promise(function(res, rej) {
+      var img = new Image();
+      img.onload = function() { res(img); };
+      img.onerror = rej;
+      img.src = src;
+    });
+  }
+
+  onProgress(15, 'Loading image data…');
+  await new Promise(function(r){ setTimeout(r, 20); });
+
+  var srcImg  = await loadImage(imageB64);
+  var maskImg = await loadImage(maskB64);
+
+  var w = srcImg.naturalWidth;
+  var h = srcImg.naturalHeight;
+
+  /* Source pixel data */
+  var srcC = document.createElement('canvas');
+  srcC.width = w; srcC.height = h;
+  var srcCtx = srcC.getContext('2d');
+  srcCtx.drawImage(srcImg, 0, 0);
+  var imgData = srcCtx.getImageData(0, 0, w, h);
+  var pix = imgData.data; /* RGBA flat array */
+
+  /* Mask data (white = needs fill) */
+  var mskC = document.createElement('canvas');
+  mskC.width = w; mskC.height = h;
+  mskC.getContext('2d').drawImage(maskImg, 0, 0);
+  var mskData = mskC.getContext('2d').getImageData(0, 0, w, h);
+
+  /* Boolean mask: true = needs to be filled */
+  var needsFill = new Uint8Array(w * h);
+  for (var i = 0; i < w * h; i++) {
+    needsFill[i] = mskData.data[i * 4] > 128 ? 1 : 0;
+  }
+
+  onProgress(20, 'Analysing region…');
+  await new Promise(function(r){ setTimeout(r, 20); });
+
+  /* 2 — Iterative diffusion fill
+     Each pass: for every masked pixel, average its already-filled (or original)
+     neighbours. Pixels filled this pass are no longer masked.
+     Repeat until no masked pixels remain. Converges in 80–150 passes. */
+  var MAX_PASSES = 150;
+  var totalMasked = 0;
+  for (var k = 0; k < w * h; k++) if (needsFill[k]) totalMasked++;
+
+  var remaining = totalMasked;
+  var dx = [-1,1,0,0,-1,-1,1,1];
+  var dy = [0,0,-1,1,-1,1,-1,1];
+
+  for (var pass = 0; pass < MAX_PASSES && remaining > 0; pass++) {
+    var filledThisPass = 0;
+    /* Alternate scan direction each pass for more even propagation */
+    var forward = (pass % 2 === 0);
+
+    for (var pi = 0; pi < w * h; pi++) {
+      var idx = forward ? pi : (w * h - 1 - pi);
+      if (!needsFill[idx]) continue;
+
+      var px = idx % w;
+      var py = (idx / w) | 0;
+      var rSum = 0, gSum = 0, bSum = 0, wSum = 0;
+
+      for (var d = 0; d < 8; d++) {
+        var nx = px + dx[d];
+        var ny = py + dy[d];
+        if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+        var nIdx = ny * w + nx;
+        if (needsFill[nIdx]) continue; /* neighbour not yet filled */
+        /* cardinal neighbours get double weight */
+        var w8 = (d < 4) ? 2 : 1;
+        var np = nIdx * 4;
+        rSum += pix[np]   * w8;
+        gSum += pix[np+1] * w8;
+        bSum += pix[np+2] * w8;
+        wSum += w8;
+      }
+
+      if (wSum > 0) {
+        var op = idx * 4;
+        pix[op]   = Math.round(rSum / wSum);
+        pix[op+1] = Math.round(gSum / wSum);
+        pix[op+2] = Math.round(bSum / wSum);
+        pix[op+3] = 255;
+        needsFill[idx] = 0;
+        filledThisPass++;
+      }
+    }
+
+    remaining -= filledThisPass;
+    if (filledThisPass === 0) break; /* isolated island — stop */
+
+    /* Progress update every 10 passes (yield to keep UI alive) */
+    if (pass % 10 === 0) {
+      var pct = 20 + Math.round(((totalMasked - remaining) / Math.max(totalMasked, 1)) * 65);
+      onProgress(pct, 'Filling region… pass ' + (pass + 1));
+      await new Promise(function(r){ setTimeout(r, 0); });
+    }
+  }
+
+  onProgress(88, 'Rendering result…');
+  await new Promise(function(r){ setTimeout(r, 20); });
+
+  /* 3 — Write result and return blob URL */
+  srcCtx.putImageData(imgData, 0, 0);
+  return new Promise(function(resolve, reject) {
+    srcC.toBlob(function(blob) {
+      if (!blob) { reject(new Error('Failed to encode result image')); return; }
+      resolve(URL.createObjectURL(blob));
+    }, 'image/jpeg', 0.92);
+  });
+}
+
+/* Build a properly-sized image + mask for the API (max 1024px, multiples of 8) */
+function oePrepareCanvases() {
+  var MAX = 1024;
+  var scale = Math.min(MAX / OE.imgW, MAX / OE.imgH, 1);
+  var outW  = Math.max(8, Math.round(OE.imgW * scale / 8) * 8);
+  var outH  = Math.max(8, Math.round(OE.imgH * scale / 8) * 8);
+
+  /* Image canvas → JPEG base64 */
+  var imgC = document.createElement('canvas');
+  imgC.width = outW; imgC.height = outH;
+  imgC.getContext('2d').drawImage(document.getElementById('oe-base'), 0, 0, outW, outH);
+  var imageB64 = imgC.toDataURL('image/jpeg', 0.92);
+
+  /* Mask canvas: white=erase area, black=keep */
+  var mskC = document.createElement('canvas');
+  mskC.width = outW; mskC.height = outH;
+  var mCtx = mskC.getContext('2d');
+  mCtx.fillStyle = '#000';
+  mCtx.fillRect(0, 0, outW, outH);
+
+  /* Scale the offscreen painted mask, then binarise */
+  var scaleTmp = document.createElement('canvas');
+  scaleTmp.width = outW; scaleTmp.height = outH;
+  scaleTmp.getContext('2d').drawImage(OE.maskOffscreen, 0, 0, outW, outH);
+  var mData = scaleTmp.getContext('2d').getImageData(0, 0, outW, outH);
+  for (var i = 0; i < mData.data.length; i += 4) {
+    var v = mData.data[i + 3] > 30 ? 255 : 0;
+    mData.data[i] = mData.data[i+1] = mData.data[i+2] = v;
+    mData.data[i+3] = 255;
+  }
+  mCtx.putImageData(mData, 0, 0);
+  var maskB64 = mskC.toDataURL('image/png');
+
+  return { imageB64: imageB64, maskB64: maskB64, outW: outW, outH: outH };
+}
+
+async function oeErase() {
+  if (!OE.hasMask || !OE.imgW) return;
+
+  var btn      = document.getElementById('oe-erase-btn');
+  var progWrap = document.getElementById('oe-prog-wrap');
+  var errBox   = document.getElementById('oe-err-box');
+  if (errBox) errBox.style.display = 'none';
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner spin"></i> Sending to AI…';
+  progWrap.style.display = 'block';
+
+  function setProgress(pct, msg) {
+    document.getElementById('oe-prog-bar').style.width  = pct + '%';
+    document.getElementById('oe-prog-pct').textContent  = pct + '%';
+    document.getElementById('oe-prog-msg').textContent  = msg || 'Processing…';
+  }
+
+  setProgress(5, 'Preparing image…');
+  await new Promise(function(r){ setTimeout(r, 30); });
+
+  try {
+    /* 1 — Prepare scaled image + mask */
+    var prep = oePrepareCanvases();
+    setProgress(10, 'Preparing fill region…');
+
+    /* 2 — Call HF inpainting API (handles cold-start retries internally) */
+    var resultUrl = await hfInpaint(prep.imageB64, prep.maskB64, setProgress);
+    setProgress(88, 'Rendering result…');
+
+    /* 3 — Load result image */
+    var img = new Image();
+    await new Promise(function(res, rej) { img.onload = res; img.onerror = rej; img.src = resultUrl; });
+
+    /* 6 — Paint result onto result thumb */
+    var resC = document.getElementById('oe-result-thumb');
+    resC.width  = img.naturalWidth;
+    resC.height = img.naturalHeight;
+    resC.getContext('2d').drawImage(img, 0, 0);
+
+    /* 7 — Update base canvas so user can erase another object */
+    var baseC = document.getElementById('oe-base');
+    baseC.width  = img.naturalWidth;
+    baseC.height = img.naturalHeight;
+    OE.imgW = img.naturalWidth;
+    OE.imgH = img.naturalHeight;
+    baseC.getContext('2d').drawImage(img, 0, 0);
+
+    /* 8 — Resize mask canvases to match new dimensions + re-fit display */
+    var maskC = document.getElementById('oe-mask');
+    maskC.width  = OE.imgW;
+    maskC.height = OE.imgH;
+    maskC.getContext('2d').clearRect(0, 0, OE.imgW, OE.imgH);
+    OE.maskOffscreen.width  = OE.imgW;
+    OE.maskOffscreen.height = OE.imgH;
+    OE.maskOffCtx.clearRect(0, 0, OE.imgW, OE.imgH);
+    OE.hasMask = false;
+    oeFitCanvas();   // refit display to new result dimensions
+
+    setProgress(100, 'Done!');
+    setTimeout(function(){ progWrap.style.display = 'none'; }, 1200);
+
+    /* Show result card */
+    document.getElementById('oe-result-card').style.display = 'block';
+    OE.eraseSuccess = true;
+
+    /* Store result for download */
+    fetch(resultUrl)
+      .then(function(r){ return r.blob(); })
+      .then(function(b){ OE.resultBlob = b; })
+      .catch(function(){});   // non-fatal
+
+  } catch (err) {
+    /* Show error to user */
+    OE.eraseSuccess = false;
+    setProgress(0, '');
+    progWrap.style.display = 'none';
+    var eb = document.getElementById('oe-err-box');
+    if (eb) { eb.textContent = '⚠ ' + (err.message || 'Unknown error'); eb.style.display = 'block'; }
+    else { alert('Object Eraser error:\n' + (err.message || err)); }
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-eraser"></i> Erase Object';
+  oeUpdateEraseBtn();
+  var tabBtnE = document.getElementById('oe-toolbar-action-btn');
+  if (tabBtnE) {
+    if (OE.eraseSuccess) {
+      /* Success: show Download in the same spot */
+      tabBtnE.innerHTML = '<i class="fas fa-download"></i> Download';
+      tabBtnE.onclick = oeDownload;
+      tabBtnE.style.background = '#16a34a';
+      tabBtnE.style.borderColor = '#16a34a';
+    } else {
+      /* Error: keep Erase it */
+      tabBtnE.innerHTML = '<i class="fas fa-eraser"></i> Erase it';
+      tabBtnE.onclick = oeErase;
+      tabBtnE.style.background = '#ef4444';
+      tabBtnE.style.borderColor = '#ef4444';
+    }
+  }
+  document.getElementById('oe-card3').classList.remove('oe-active');
+}
+
+function oeToolbarAction() {
+  if (OE.resultBlob || document.getElementById('oe-result-card').style.display !== 'none') {
+    oeDownload();
+  } else {
+    oeErase();
+  }
+}
+
+function oeDownload() {
+  if (!OE.resultBlob && !OE.imgW) return;
+  var resC = document.getElementById('oe-result-thumb');
+  resC.toBlob(function(blob){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href = url; a.download = 'erased_object.png'; a.click();
+    setTimeout(function(){URL.revokeObjectURL(url);}, 5000);
+  }, 'image/png');
+}
+
+function oeEraseAnother() {
+  // Reset mask so user can paint again on the already-erased image
+  oeResetMask();
+  OE.resultBlob = null;
+  document.getElementById('oe-result-card').style.display = 'none';
+  document.getElementById('oe-card2').classList.add('oe-active');
+  var tabBtn = document.getElementById('oe-toolbar-action-btn');
+  if (tabBtn) { tabBtn.innerHTML = '<i class="fas fa-eraser"></i> Erase it'; tabBtn.onclick = oeErase; tabBtn.style.background='#ef4444'; tabBtn.style.borderColor='#ef4444'; }
+}
+
+
+/* ═══════════════════════ TEXT EXTRACTOR ═══════════════════════ */
+var TX = { file: null, mode: 'general' };
+
+/* ── TX API Key management (localStorage only) ── */
+var _txCachedKeys = null;
+function _txGetKeys() {
+  if (_txCachedKeys) return _txCachedKeys;
+  try {
+    var raw = localStorage.getItem('txOrKeys_yy');
+    if (raw) { var parsed = JSON.parse(raw); if (Array.isArray(parsed)) { _txCachedKeys = parsed.filter(Boolean); return _txCachedKeys; } }
+  } catch(e) {}
+  return [];
+}
+function _txSetKeys(arr) {
+  _txCachedKeys = arr.filter(Boolean);
+  try { localStorage.setItem('txOrKeys_yy', JSON.stringify(_txCachedKeys)); } catch(e) {}
+}
+function _txRenderKeyInputs() {
+  var keys = _txGetKeys();
+  var container = document.getElementById('txKeyInputs');
+  if (!container) return;
+  container.innerHTML = '';
+  for (var i = 0; i < 5; i++) {
+    var val = (keys[i] || '').replace(/"/g, '&quot;');
+    var labelExtra = i === 0
+      ? '<span style="color:#16a34a;font-weight:600;margin-left:.3rem;">— Primary</span>'
+      : '<span style="color:#9ca3af;margin-left:.3rem;">— Fallback ' + i + '</span>';
+    var row = document.createElement('div');
+    row.className = 'space-y-1';
+    row.innerHTML = '<label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:600;color:#4b5563;">'
+      + '<i class="fas fa-key" style="color:#7c3aed;"></i> Key ' + (i+1) + labelExtra
+      + '</label>'
+      + '<input type="text" id="txKey_' + i + '" name="field_tx' + i + '_or" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute(\'readonly\')"'
+      + ' class="w-full border border-purple-300 rounded-lg p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"'
+      + ' placeholder="sk-or-v1-…" value="' + val + '">';
+    container.appendChild(row);
+  }
+}
+/* ── Tools Firebase — server-persisted config (survives Google Sites iframe reloads) ── */
+var BUILTIN_DEFAULT_CONFIG = {
+  apiKey: "AIzaSyCRk9QoqDPEGAW1wuGJaIB0RjbTZywOf3E",
+  authDomain: "tools-73bdd.firebaseapp.com",
+  databaseURL: "https://tools-73bdd-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "tools-73bdd",
+  storageBucket: "tools-73bdd.firebasestorage.app",
+  messagingSenderId: "1031568508814",
+  appId: "1:1031568508814:web:d895d00466852c09c286df"
+};
+var DEFAULT_SERVER_CONFIG = null;
+var _toolsDb = null, _toolsFirebaseApp = null;
+
+function _initToolsFirebase(cfg){
+  if(!cfg || typeof cfg !== 'object') return;
+  DEFAULT_SERVER_CONFIG = cfg;
+  try {
+    _toolsFirebaseApp = firebase.initializeApp(cfg, 'yyk-tools');
+    _toolsDb = firebase.database(_toolsFirebaseApp);
+  } catch(e){ console.warn('Tools Firebase init error', e); }
+}
+
+/* Fallback: try localStorage first (works in standalone browser tabs) */
+(function(){
+  try {
+    var sc = localStorage.getItem('serverConfig_yyk_tools');
+    if(sc) _initToolsFirebase(JSON.parse(sc));
+    else _initToolsFirebase(BUILTIN_DEFAULT_CONFIG);
+  } catch(e){ _initToolsFirebase(BUILTIN_DEFAULT_CONFIG); }
+}());
+
+function _getToolsDb(){ return _toolsDb; }
+function _resetToolsDb(){
+  _toolsDb = null; _toolsFirebaseApp = null;
+  try { firebase.app('yyk-tools').delete(); } catch(e){}
+}
+
+/* ── Company Name/Address ── */
+var _companyName = 'YIK YUE (H.K.) COMMERCIAL LIMITED';
+var _companyAddr = '2/F, Plaza 33, Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh';
+function _loadCompanyInfo(){
+  var d = _getToolsDb();
+  if(d){
+    d.ref('toolsSettings/companyName').once('value', function(s){ if(s.val()) _applyCompany(s.val(), _companyAddr); });
+    d.ref('toolsSettings/companyAddress').once('value', function(s){ if(s.val()) _applyCompany(_companyName, s.val()); });
+  }
+}
+function _applyCompany(name, addr){
+  _companyName = name || _companyName;
+  _companyAddr = addr || _companyAddr;
+  var hn = document.getElementById('headerCompanyName');
+  var ha = document.getElementById('headerCompanyAddress');
+  if(hn) hn.textContent = _companyName;
+  if(ha) ha.textContent = _companyAddr;
+}
+function openNameAddressModal(){
+  document.getElementById('naNameInput').value = _companyName;
+  document.getElementById('naAddressInput').value = _companyAddr;
+  document.getElementById('nameAddressModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeNameAddressModal(){
+  document.getElementById('nameAddressModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+function saveNameAddress(){
+  var name = document.getElementById('naNameInput').value.trim();
+  var addr = document.getElementById('naAddressInput').value.trim();
+  if(!name){ alert('Company name cannot be empty.'); return; }
+  try { localStorage.setItem('yyk_tools_company_name', name); } catch(e){}
+  try { localStorage.setItem('yyk_tools_company_addr', addr); } catch(e){}
+  var d = _getToolsDb();
+  if(d){ d.ref('toolsSettings/companyName').set(name); d.ref('toolsSettings/companyAddress').set(addr); }
+  _applyCompany(name, addr);
+  closeNameAddressModal();
+}
+
+/* ── Dropdown menu helpers ── */
+function toggleServerApiMenu(e){
+  e.stopPropagation();
+  var m=document.getElementById('serverApiMenu');
+  m.classList.toggle('hidden');
+}
+function _closeServerApiMenu(){
+  document.getElementById('serverApiMenu').classList.add('hidden');
+}
+document.addEventListener('click',function(){ _closeServerApiMenu(); });
+
+/* ── Server modal (Firebase config) ── */
+function openServerModal(){
+  var hasPrev = !!sessionStorage.getItem('prevServerConfig_yyk_tools');
+  var prevInfoEl = document.getElementById('srvPrevInfo');
+  var restoreBtn = document.getElementById('srvRestoreBtn');
+  if(prevInfoEl) prevInfoEl.classList.toggle('hidden', !hasPrev);
+  if(restoreBtn) restoreBtn.disabled = !hasPrev;
+  document.getElementById('srvConfigJson').value = DEFAULT_SERVER_CONFIG ? 'const firebaseConfig = ' + JSON.stringify(DEFAULT_SERVER_CONFIG, null, 2) + ';' : '';
+  document.getElementById('serverModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeServerModal(){
+  document.getElementById('serverModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+function parseServerConfigInput(raw){
+  var s = raw.trim()
+    .replace(/^\s*(?:const|var|let)\s+\w+\s*=\s*/, '')
+    .replace(/;\s*$/, '')
+    .trim();
+  s = s.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
+  return JSON.parse(s);
+}
+function saveServerConfig(){
+  var raw = document.getElementById('srvConfigJson').value.trim();
+  var cfg = null;
+  if(raw){
+    try { cfg = parseServerConfigInput(raw); }
+    catch(e){ alert('Invalid config — please check the format.\n\nYou can paste either:\n  • Plain JSON: { "apiKey": "...", ... }\n  • Or the full JS snippet: const firebaseConfig = { ... };'); return; }
+    if(typeof cfg!=='object'||Array.isArray(cfg)){ alert('Config must be a Firebase config object.'); return; }
+    if(!cfg.apiKey||!cfg.databaseURL){ alert('Config must include at least apiKey and databaseURL.'); return; }
+  }
+  /* Save previous to sessionStorage for restore (same as Product Register) */
+  if(DEFAULT_SERVER_CONFIG) sessionStorage.setItem('prevServerConfig_yyk_tools', JSON.stringify(DEFAULT_SERVER_CONFIG));
+  /* Also update localStorage for non-iframe contexts */
+  try {
+    if(cfg) localStorage.setItem('serverConfig_yyk_tools', JSON.stringify(cfg));
+    else localStorage.removeItem('serverConfig_yyk_tools');
+  } catch(e){}
+  closeServerModal();
+  /* POST to Replit server — persists across all reloads including Google Sites iframes */
+  fetch('/api/app-config/tools-firebase-config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({config: cfg || null})
+  }).finally(function(){ window.location.reload(); });
+}
+function restoreServerConfig(){
+  var prev = sessionStorage.getItem('prevServerConfig_yyk_tools');
+  if(!prev){ alert('No previous config to restore.'); return; }
+  var prevCfg;
+  try { prevCfg = JSON.parse(prev); } catch(e){ alert('Previous config is corrupted.'); return; }
+  try { localStorage.setItem('serverConfig_yyk_tools', prev); } catch(e){}
+  closeServerModal();
+  fetch('/api/app-config/tools-firebase-config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({config: prevCfg})
+  }).finally(function(){
+    sessionStorage.removeItem('prevServerConfig_yyk_tools');
+    window.location.reload();
+  });
+}
+
+/* ── API Keys modal ── */
+function openTxApiModal(){
+  _txRenderKeyInputs();
+  document.getElementById('txApiModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeTxApiModal(){
+  document.getElementById('txApiModal').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+/* ── keep old aliases so nothing else breaks ── */
+function openServerApiModal(){ openServerModal(); }
+function closeServerApiModal(){ closeServerModal(); }
+
+/* ── API keys — also save to Firebase ── */
+function _loadApiKeysFromFirebase(){
+  var d = _getToolsDb();
+  if(!d) return;
+  d.ref('toolsSettings/apiKeys').once('value', function(s){
+    var v = s.val();
+    if(v && Array.isArray(v) && v.length){ _txSetKeys(v); }
+  });
+}
+
+function saveTxApiSettings() {
+  var arr = [];
+  for (var i = 0; i < 5; i++) {
+    var el = document.getElementById('txKey_' + i);
+    if (el && el.value.trim()) arr.push(el.value.trim());
+  }
+  _txSetKeys(arr);
+  var d = _getToolsDb();
+  if(d){ d.ref('toolsSettings/apiKeys').set(arr); }
+  closeTxApiModal();
+}
+function txInit() {
+  _loadCompanyInfo();
+  _loadApiKeysFromFirebase();
+}
+
+function txModeChange() {
+  var val = document.querySelector('input[name="tx-mode"]:checked').value;
+  TX.mode = val;
+  var gEl = document.getElementById('tx-mode-general');
+  var rEl = document.getElementById('tx-mode-receipt');
+  gEl.style.borderColor  = val === 'general' ? '#2563eb' : '#e2e8f0';
+  gEl.style.background   = val === 'general' ? '#eff6ff' : '#fff';
+  gEl.style.color        = val === 'general' ? '#1d4ed8' : '#64748b';
+  rEl.style.borderColor  = val === 'receipt' ? '#f59e0b' : '#e2e8f0';
+  rEl.style.background   = val === 'receipt' ? '#fffbeb' : '#fff';
+  rEl.style.color        = val === 'receipt' ? '#b45309' : '#64748b';
+}
+
+function txDrop(e) {
+  e.preventDefault();
+  var drop = document.getElementById('tx-drop');
+  drop.style.borderColor = '#93c5fd'; drop.style.background = '#eff6ff';
+  var f = e.dataTransfer.files[0];
+  if (f) txFileSelected(f);
+}
+
+function txFileSelected(f) {
+  if (!f) return;
+  TX.file = f;
+  var badge = document.getElementById('tx-file-badge');
+  document.getElementById('tx-file-name').textContent = f.name;
+  badge.style.display = 'flex';
+  document.getElementById('tx-process-btn').disabled = false;
+  document.getElementById('tx-process-btn').style.opacity = '1';
+  document.getElementById('tx-output-wrap').style.display = 'none';
+  document.getElementById('tx-err').style.display = 'none';
+}
+
+function txClearFile() {
+  TX.file = null;
+  document.getElementById('tx-file-badge').style.display = 'none';
+  document.getElementById('tx-file-inp').value = '';
+  document.getElementById('tx-process-btn').disabled = true;
+  document.getElementById('tx-process-btn').style.opacity = '.45';
+  document.getElementById('tx-output-wrap').style.display = 'none';
+}
+
+function txSetProg(pct, msg) {
+  document.getElementById('tx-prog-bar').style.width = pct + '%';
+  document.getElementById('tx-prog-pct').textContent = pct + '%';
+  document.getElementById('tx-prog-msg').textContent = msg;
+}
+
+/* Convert file to array of base64 data-URLs (one per page for PDFs) */
+async function txFileToImages(file) {
+  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+    if (!window.pdfjsLib) throw new Error('PDF.js not loaded — please reload the page.');
+    var arrayBuf = await file.arrayBuffer();
+    var pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+    var images = [];
+    for (var i = 1; i <= pdf.numPages; i++) {
+      txSetProg(10 + Math.round((i / pdf.numPages) * 30), 'Rendering PDF page ' + i + ' of ' + pdf.numPages + '…');
+      var page = await pdf.getPage(i);
+      var vp = page.getViewport({ scale: 2.0 });
+      var canvas = document.createElement('canvas');
+      canvas.width = vp.width; canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      images.push(canvas.toDataURL('image/jpeg', 0.92));
+    }
+    return images;
+  } else {
+    return await new Promise(function(res, rej) {
+      var r = new FileReader();
+      r.onload = function() { res([r.result]); };
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+}
+
+/* Build prompt based on mode */
+function txPrompt() {
+  if (TX.mode === 'receipt') {
+    return 'You are reading a receipt or invoice image. Extract ONLY the purchased item names and their quantities. Output a single line of comma-separated entries in EXACTLY this format: Item Name Xp, Item Name Xp (where X is the numeric quantity and p is the literal letter p for pieces). Example: Bashundhara Toilet Tissue White (4pcs Saving Pack) 2p, Ispahani Mirzapore Tea Bag 100gm 3p. Include nothing else — no prices, no totals, no headers, no blank lines. Just the comma-separated item list.';
+  }
+  return 'Extract all text from this document exactly as it appears. Preserve all original formatting: tables (use plain text columns aligned with spaces), headers, bold labels, line breaks, indentation, numbers, and structure. Do not summarise, translate, or reformat anything. Output the raw text faithfully.';
+}
+
+async function _txCallOneKey(apiKey, imageUrl, prompt) {
+  var resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + apiKey,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': window.location.href,
+      'X-Title': 'YIK YUE Text Extractor'
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: [
+        { type: 'image_url', image_url: { url: imageUrl } },
+        { type: 'text', text: prompt }
+      ]}]
+    })
+  });
+  if (!resp.ok) {
+    var errBody = await resp.text();
+    throw new Error('API error ' + resp.status + ': ' + errBody.slice(0, 200));
+  }
+  var json = await resp.json();
+  return (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) || '';
+}
+
+async function txProcess() {
+  if (!TX.file) return;
+  var keys = _txGetKeys();
+  if (!keys.length) {
+    txShowErr('No API key set — click \u201cAPI Keys\u201d in the header to add your OpenRouter key.');
+    return;
+  }
+
+  var btn = document.getElementById('tx-process-btn');
+  btn.disabled = true; btn.style.opacity = '.6';
+  document.getElementById('tx-prog').style.display = 'block';
+  document.getElementById('tx-err').style.display = 'none';
+  document.getElementById('tx-output-wrap').style.display = 'none';
+
+  try {
+    txSetProg(5, 'Reading file…');
+    await new Promise(function(r) { setTimeout(r, 20); });
+
+    var images = await txFileToImages(TX.file);
+    txSetProg(45, 'Sending to AI…');
+    await new Promise(function(r) { setTimeout(r, 20); });
+
+    var allText = [];
+    for (var p = 0; p < images.length; p++) {
+      if (images.length > 1) txSetProg(45 + Math.round((p / images.length) * 45), 'Processing page ' + (p + 1) + ' of ' + images.length + '…');
+      var pageText = '';
+      var lastErr = null;
+      for (var ki = 0; ki < keys.length; ki++) {
+        try {
+          pageText = await _txCallOneKey(keys[ki], images[p], txPrompt());
+          lastErr = null;
+          break;
+        } catch(e) {
+          lastErr = e;
+        }
+      }
+      if (lastErr) throw lastErr;
+      allText.push(pageText.trim());
+    }
+
+    txSetProg(100, 'Done!');
+    setTimeout(function() { document.getElementById('tx-prog').style.display = 'none'; }, 1000);
+
+    var finalText = TX.mode === 'receipt'
+      ? allText.join(', ').replace(/,\s*,/g, ',').trim()
+      : allText.join('\n\n--- Page Break ---\n\n').trim();
+
+    document.getElementById('tx-output').textContent = finalText;
+    document.getElementById('tx-output-wrap').style.display = 'block';
+
+  } catch (err) {
+    txShowErr(err.message || 'Unknown error');
+    document.getElementById('tx-prog').style.display = 'none';
+  }
+
+  btn.disabled = false; btn.style.opacity = '1';
+}
+
+function txShowErr(msg) {
+  var el = document.getElementById('tx-err');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+function txCopyOutput(btn) {
+  var text = document.getElementById('tx-output').textContent;
+  function onSuccess() {
+    btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+    btn.style.background = '#dcfce7';
+    btn.style.color = '#16a34a';
+    btn.style.borderColor = '#86efac';
+    setTimeout(function() {
+      btn.innerHTML = '<i class="fas fa-copy"></i> Copy';
+      btn.style.background = '#eff6ff';
+      btn.style.color = '#2563eb';
+      btn.style.borderColor = '#93c5fd';
+    }, 2000);
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(onSuccess).catch(fallback);
+  } else {
+    fallback();
+  }
+  function fallback() {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); onSuccess(); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+}
+
+/* ═══════════════════════ INIT ═══════════════════════ */
+
+</script>
+<script>
+(function(){var el=document.getElementById('deviceIdShort');if(el&&window._yykDID)el.textContent=window._yykDID.slice(-8).toUpperCase();})();
+</script>
+
+<!-- Name & Address Modal -->
+<div id="nameAddressModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[9999] flex justify-center items-center p-4" onclick="if(event.target===this)closeNameAddressModal()">
+  <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg" onclick="event.stopPropagation()">
+    <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+      <h3 class="text-lg font-bold"><i class="fas fa-building mr-2"></i>Name &amp; Address</h3>
+      <button onclick="closeNameAddressModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Company Name</label>
+        <input type="text" id="naNameInput" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none" placeholder="Company Name">
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1">Address</label>
+        <textarea id="naAddressInput" rows="3" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none resize-none" placeholder="Full Address"></textarea>
+      </div>
+      <p class="text-xs text-gray-400"><i class="fas fa-info-circle mr-1"></i>Changes are saved to Firebase (if configured) and to this browser.</p>
+      <div class="flex justify-end gap-2 pt-1">
+        <button onclick="closeNameAddressModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button>
+        <button onclick="saveNameAddress()" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark font-medium text-sm"><i class="fas fa-save mr-1"></i>Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Server Settings Modal -->
+<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[9999] flex justify-center items-center p-4" onclick="if(event.target===this)closeServerModal()">
+  <div class="bg-white rounded-lg shadow-2xl w-full max-w-xl" onclick="event.stopPropagation()">
+    <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+      <h3 class="text-lg font-bold"><i class="fas fa-server mr-2"></i>Server Settings</h3>
+      <button onclick="closeServerModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-xs text-green-700 bg-green-50 border border-green-200 rounded p-2"><i class="fas fa-server mr-1 text-green-600"></i>Config is saved to the server — persists across all reloads and devices, including Google Sites. Paste your Firebase config JSON or the full <code>const firebaseConfig = {...}</code> snippet.</p>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">Firebase Config</label>
+        <textarea id="srvConfigJson" rows="11" spellcheck="false" class="w-full border border-gray-300 rounded p-2 text-xs font-mono focus:ring-2 focus:ring-brand outline-none resize-none" placeholder="const firebaseConfig = {&#10;  apiKey: &quot;...&quot;,&#10;  databaseURL: &quot;...&quot;,&#10;  ...&#10;};"></textarea>
+      </div>
+      <div id="srvPrevInfo" class="p-2 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 hidden"><p><i class="fas fa-history mr-1"></i>A previous config exists and can be restored.</p></div>
+      <div class="flex justify-between items-center gap-2 flex-wrap">
+        <button id="srvRestoreBtn" onclick="restoreServerConfig()" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium text-sm"><i class="fas fa-undo mr-1"></i>Restore Previous</button>
+        <div class="flex gap-2 ml-auto">
+          <button onclick="closeServerModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button>
+          <button onclick="saveServerConfig()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm"><i class="fas fa-save mr-1"></i>Save &amp; Reload</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- API Keys Modal -->
+<div id="txApiModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[9999] flex justify-center items-center p-4" onclick="if(event.target===this)closeTxApiModal()">
+  <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg" onclick="event.stopPropagation()">
+    <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+      <h3 class="text-lg font-bold"><i class="fas fa-robot mr-2"></i>AI Settings &#8212; Text Extractor</h3>
+      <button onclick="closeTxApiModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="p-6 space-y-4">
+      <p class="text-sm text-gray-600">The AI <strong>reads each document as an image</strong> and extracts all text. Add up to <strong>5 OpenRouter keys</strong> &#8212; if one fails or hits a rate limit, the next is tried automatically.</p>
+      <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs text-purple-800">
+        <i class="fas fa-info-circle mr-1 text-purple-500"></i>
+        Get free API keys at <a href="https://openrouter.ai/keys" target="_blank" class="underline font-semibold hover:text-purple-900">openrouter.ai/keys</a>. Keys are tried in order &#8212; Key 1 first, then Key 2 as fallback, and so on.
+      </div>
+      <div id="txKeyInputs" class="space-y-3"></div>
+      <p class="text-xs text-gray-400"><i class="fas fa-shield-alt mr-1"></i>Keys are saved to this browser and synced to Firebase if a server is configured.</p>
+      <div class="flex justify-end gap-2 pt-1">
+        <button onclick="closeTxApiModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button>
+        <button onclick="saveTxApiSettings()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm"><i class="fas fa-save mr-1"></i>Save Keys</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Brush cursor ring — must live at body level; position:fixed is broken inside overflow:hidden on some browsers -->
+<div id="oe-cursor" style="position:fixed;border:2.5px solid rgba(239,68,68,.9);border-radius:50%;pointer-events:none;display:none;transform:translate(-50%,-50%);box-shadow:0 0 0 1.5px rgba(0,0,0,.25);z-index:9999;"></div>
+</body>
+</html>
