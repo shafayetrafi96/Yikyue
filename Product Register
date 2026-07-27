@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YIK YUE (H.K.) COMMERCIAL LIMITED - Product Register</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>tailwind.config={theme:{extend:{colors:{brand:'#0A4038','brand-dark':'#072e27','brand-light':'#e0efed'}}}}</script>
+    <style>
+        body{background:#f4f6f9}::selection{background:#0A4038;color:#fff}
+        .suggestion-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #cbd5e0;border-top:none;max-height:150px;overflow-y:auto;z-index:50;box-shadow:0 4px 6px -1px rgba(0,0,0,.1);border-radius:0 0 .25rem .25rem}
+        .suggestion-item{padding:8px 12px;cursor:pointer;font-size:.875rem;color:#4a5568}
+        .suggestion-item:hover,.suggestion-item:active{background:#e0efed;color:#0A4038}
+        .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:none;justify-content:center;align-items:center}
+        .tab-active{background-color:#0A4038;color:white}
+        .pending-card{border:2px solid #f59e0b;background:linear-gradient(135deg,#fffbeb 0%,#fff 100%);transition:box-shadow .2s,border-color .2s}
+        .pending-card:hover{box-shadow:0 4px 12px rgba(245,158,11,.25);border-color:#d97706}
+        .pending-card .field-input{border:1px solid #e5e7eb;border-radius:.375rem;padding:.375rem .5rem;font-size:.875rem;width:100%;transition:border-color .2s,box-shadow .2s}
+        .pending-card .field-input:focus{outline:none;border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.2)}
+        @keyframes slideDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+        .animate-slide-down{animation:slideDown .3s ease-out}
+        .mapping-col{min-width:110px}.mapping-col select{font-size:.7rem}
+        .paste-preview-table th,.paste-preview-table td{white-space:nowrap}
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);padding:14px 28px;border-radius:12px;color:white;font-weight:600;font-size:14px;z-index:9999;opacity:0;transition:opacity .3s;box-shadow:0 8px 30px rgba(0,0,0,.2);pointer-events:none}
+        .toast.show{opacity:1}.toast-success{background:#059669}.toast-error{background:#dc2626}.toast-info{background:#2563eb}button:disabled{opacity:.4;cursor:not-allowed}
+        input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus,input:-webkit-autofill:active,textarea:-webkit-autofill,textarea:-webkit-autofill:hover,textarea:-webkit-autofill:focus,textarea:-webkit-autofill:active{-webkit-box-shadow:0 0 0 30px white inset !important;-webkit-text-fill-color:#2d3748 !important;transition:background-color 5000s ease-in-out 0s;}
+        @keyframes rowFlash{0%{background-color:#fef9c3;}100%{background-color:transparent;}}
+        .row-flash{animation:rowFlash 10s ease-out forwards;}
+        .ai-badge-openrouter{background:#7c3aed;color:#fff;font-size:10px;padding:1px 6px;border-radius:9px;font-weight:700;letter-spacing:.3px}
+        .ai-badge-pattern{background:#6b7280;color:#fff;font-size:10px;padding:1px 6px;border-radius:9px;font-weight:700;letter-spacing:.3px}
+        #pdfProgressBar{transition:width .4s ease}
+        /* API Error Modal shake animation */
+        @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+        .shake{animation:shake .4s ease-out}
+    </style>
+</head>
+<body class="text-gray-800 font-sans">
+    <div id="toastContainer" class="toast"></div>
+
+    <!-- Admin Modal -->
+    <div id="adminModal" class="modal-bg"><div class="bg-white p-6 rounded-lg shadow-xl w-80 z-[101]"><h3 class="text-lg font-bold mb-4 text-brand-dark">Admin Login</h3><input type="password" id="adminPassInput" name="field_pw_4x1" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="w-full border border-gray-300 rounded p-2 mb-2" placeholder="Enter Password" onkeypress="if(event.key==='Enter')submitAdminLogin()"><p id="adminError" class="text-red-500 text-sm mb-4 hidden">Incorrect Password!</p><div class="flex justify-end space-x-2"><button onclick="closeAdminModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium">Cancel</button><button onclick="submitAdminLogin()" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark font-medium">Login</button></div></div></div>
+
+    <!-- Delete Modal -->
+    <div id="deleteModal" class="modal-bg" onclick="closeDeleteModal()"><div id="deleteBox" class="absolute bg-white p-6 rounded-lg shadow-2xl w-80 border border-red-200 z-[101]" onclick="event.stopPropagation()"><h3 class="text-lg font-bold mb-4 text-red-600">Confirm Deletion</h3><p id="deleteMessage" class="mb-6">Are you sure?</p><div class="flex justify-end space-x-2"><button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium">Cancel</button><button onclick="confirmDelete()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium">Delete</button></div></div></div>
+    <div id="discardModal" class="modal-bg" style="display:none"><div class="bg-white p-6 rounded-lg shadow-2xl w-80 border border-gray-200 z-[101]"><h3 class="text-lg font-bold mb-4 text-gray-700">Discard All</h3><p class="mb-6">Discard all pending courier entries? This cannot be undone.</p><div class="flex justify-end space-x-2"><button onclick="closeDiscardModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium">Cancel</button><button onclick="confirmDiscardCourierEntries()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium">Discard All</button></div></div></div>
+
+    <!-- Suggestions Modal -->
+    <div id="suggestionsModal" class="modal-bg p-4"><div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col z-[101]"><div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg shrink-0"><h3 class="text-lg font-bold"><i class="fas fa-list-alt mr-2"></i>Manage Suggestions</h3><button onclick="closeSuggestionManager()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button></div><div class="flex border-b bg-gray-50 px-4 pt-2 overflow-x-auto shrink-0"><button onclick="switchSuggestionTab('particulars')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-brand text-brand" data-tab="particulars">Items</button><button onclick="switchSuggestionTab('styles')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="styles">Styles</button><button onclick="switchSuggestionTab('orgNames')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="orgNames">Organisations</button><button onclick="switchSuggestionTab('bearers')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="bearers">Bearers/Carriers</button><button onclick="switchSuggestionTab('remarks')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="remarks">Remarks</button></div><div class="p-6 overflow-y-auto flex-1 bg-white"><div class="flex mb-6 gap-2"><input type="text" id="newSuggestionInput" name="field_sg_7u2" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="flex-1 border border-gray-300 rounded p-2" placeholder="New suggestion..." onkeypress="if(event.key==='Enter')addNewSuggestion()"><button onclick="addNewSuggestion()" class="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark font-medium">Add</button><button onclick="clearAllSuggestions()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 font-medium"><i class="fas fa-trash-alt mr-1"></i> Clear All</button></div><div id="suggestionsList" class="space-y-2"></div></div></div></div>
+
+    <!-- Paste Import Modal -->
+    <div id="pasteImportModal" class="modal-bg p-4" style="display:none"><div class="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col z-[101]"><div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg shrink-0"><h3 class="text-lg font-bold"><i class="fas fa-paste mr-2"></i>Paste &amp; Import Data</h3><button onclick="closePasteImport()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button></div><div class="px-5 pt-4 pb-1 shrink-0"><div class="bg-brand-light border border-brand rounded-lg p-3 text-sm text-brand-dark"><p class="font-semibold mb-1"><i class="fas fa-info-circle mr-1"></i> How to use:</p><ol class="list-decimal list-inside space-y-0.5 text-xs opacity-90"><li>Copy rows from <strong>Excel, Google Sheets, or any text</strong></li><li>Paste into the box below and click <strong>"Parse &amp; Preview"</strong></li><li>Adjust column mapping if auto-detection is incorrect</li><li>Set Register Type, verify preview, then click <strong>"Import Now"</strong></li></ol></div></div><div class="px-5 py-3 shrink-0"><div class="flex flex-col sm:flex-row gap-3 mb-2"><div class="w-full sm:w-48"><label class="block text-xs font-semibold text-gray-500 mb-1">Register Type</label><select id="pasteTypeSelect" class="w-full border border-gray-300 rounded p-2 bg-white"><option value="incoming" selected>Incoming</option><option value="outgoing">Outgoing</option></select></div><div class="flex-1"><label class="block text-xs font-semibold text-gray-500 mb-1">&nbsp;</label><textarea id="pasteArea" name="field_pa_4d9" autocomplete="off" class="w-full border-2 border-dashed border-gray-300 rounded-lg p-3 font-mono text-sm h-28 focus:border-brand focus:ring-1 focus:ring-brand transition" placeholder="Paste your data here..."></textarea></div></div><div class="flex gap-2 items-center flex-wrap"><button onclick="parsePastedData()" class="bg-brand text-white px-5 py-2 rounded-lg hover:bg-brand-dark font-semibold transition shadow-sm"><i class="fas fa-search mr-1"></i> Parse &amp; Preview</button><button onclick="clearPasteArea()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium transition">Clear</button><span id="parseStatus" class="text-xs text-gray-500 ml-2"></span></div></div><div id="columnMappingSection" class="px-5 pb-2 hidden shrink-0"><div class="flex items-center gap-2 mb-2"><h4 class="text-sm font-bold text-gray-700">Column Mapping</h4><span class="text-xs text-gray-400">(adjust if auto-detection is incorrect)</span></div><div id="columnMapping" class="flex gap-2 overflow-x-auto pb-2"></div></div><div id="previewSection" class="px-5 pb-5 flex-1 overflow-auto hidden"><div class="flex justify-between items-center mb-2 flex-wrap gap-2"><h4 class="text-sm font-bold text-gray-700">Preview: <span id="previewCount" class="text-brand">0</span> entries detected</h4><div class="flex gap-3 items-center"><span id="duplicateInfo" class="text-xs text-orange-600 hidden"><i class="fas fa-exclamation-triangle mr-1"></i><span id="duplicateCount">0</span> duplicates will be skipped</span><button id="importBtn" onclick="importPastedData()" class="bg-green-600 text-white px-6 py-2.5 rounded-lg hover:bg-green-700 font-bold transition shadow-sm text-base"><i class="fas fa-file-import mr-2"></i>Import Now</button></div></div><div class="overflow-x-auto border rounded-lg"><table class="min-w-full text-sm paste-preview-table"><thead id="previewHead" class="bg-gray-100 sticky top-0 z-10"></thead><tbody id="previewBody"></tbody></table></div></div></div></div>
+
+    <!-- ===== API Error Modal ===== -->
+    <div id="apiErrorModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[9999] flex justify-center items-center p-4">
+        <div id="apiErrorBox" class="bg-white rounded-xl shadow-2xl w-full max-w-md border-t-4 border-red-500" onclick="event.stopPropagation()">
+            <div class="p-4 flex items-start gap-3">
+                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-lg"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-red-700" id="apiErrorTitle">AI API Error</h3>
+                    <p class="text-xs text-gray-500 mt-0.5" id="apiErrorSubtitle">Pattern extraction used as fallback</p>
+                </div>
+                <button onclick="closeApiErrorModal()" class="text-gray-400 hover:text-gray-600 mt-0.5"><i class="fas fa-times text-lg"></i></button>
+            </div>
+            <div class="px-5 pb-5">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <p class="text-sm text-red-800 font-mono break-all" id="apiErrorMessage"></p>
+                </div>
+                <p class="text-xs text-gray-500 mb-4" id="apiErrorHint"></p>
+                <div class="flex justify-end gap-2">
+                    <button onclick="closeApiErrorModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium text-sm">Close</button>
+                    <button onclick="closeApiErrorModal();openAiSettingsModal()" class="px-4 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark font-medium text-sm"><i class="fas fa-key mr-1"></i>Update API Keys</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Parse Error Modal -->
+    <div id="pdfErrorModal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[9999] flex justify-center items-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md border-t-4 border-orange-500" onclick="event.stopPropagation()">
+            <div class="p-4 flex items-start gap-3">
+                <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    <i class="fas fa-file-pdf text-orange-500 text-lg"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-orange-700">PDF Processing Failed</h3>
+                    <p class="text-xs text-gray-500 mt-0.5" id="pdfErrorFileName"></p>
+                </div>
+                <button onclick="closePdfErrorModal()" class="text-gray-400 hover:text-gray-600 mt-0.5"><i class="fas fa-times text-lg"></i></button>
+            </div>
+            <div class="px-5 pb-5">
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
+                    <p class="text-sm text-orange-800 font-mono break-all" id="pdfErrorMessage"></p>
+                </div>
+                <p class="text-xs text-gray-500 mb-4">Make sure the PDF is not password-protected or corrupted. Scanned PDFs are supported — they are rendered as images for AI analysis.</p>
+                <div class="flex justify-end">
+                    <button onclick="closePdfErrorModal()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium text-sm">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-4 pb-12">
+        <div class="bg-brand text-white p-4 rounded-t-lg flex justify-between items-center shadow-md"><div><h1 id="headerCompanyName" class="text-xl font-bold tracking-wide">YIK YUE (H.K.) COMMERCIAL LIMITED</h1><p id="headerCompanyAddress" class="text-sm opacity-90">2/F, Plaza 33, Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh</p><p class="text-xs opacity-60 mt-0.5"><i class="fas fa-microchip mr-1"></i>Device: <span id="deviceIdShort"></span></p></div><div class="flex flex-wrap gap-2 items-center"><button id="nameAddressBtn" onclick="openNameAddressModal()" class="hidden bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-100 transition text-sm shadow"><i class="fas fa-building mr-2"></i>Name &amp; Address</button><div id="serverAiWrap" class="hidden relative"><button id="serverBtn" onclick="toggleServerAiMenu(event)" class="bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-100 transition text-sm shadow"><i class="fas fa-server mr-2"></i>Server &amp; API<i class="fas fa-chevron-down ml-2 text-xs"></i></button><div id="serverAiMenu" class="hidden absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-md shadow-lg z-50 text-left overflow-hidden"><button onclick="closeServerAiMenu();openServerModal()" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-brand-light hover:text-brand-dark transition"><i class="fas fa-server mr-2 w-4"></i>Server Settings</button><button onclick="closeServerAiMenu();openAiSettingsModal()" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-brand-light hover:text-brand-dark transition border-t border-gray-100"><i class="fas fa-key mr-2 w-4"></i>API Keys</button></div></div><button id="adminBtn" onclick="checkAdmin()" class="bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-200 transition shadow-sm"><i class="fas fa-user-lock mr-2"></i>Admin</button></div></div>
+
+        <div id="formSection" class="bg-white p-6 shadow-md mb-6 border border-t-0 border-gray-200 rounded-b-lg">
+            <h2 id="formHeading" class="text-lg font-semibold mb-4 border-b pb-2 text-brand-dark">New Product Entry</h2>
+            <form id="registerForm" autocomplete="off" data-lpignore="true" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div><label class="block text-sm font-medium text-gray-700">Type</label><select id="entryType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 bg-white" required><option value="incoming" selected>Incoming</option><option value="outgoing">Outgoing</option></select></div>
+                <div><label class="block text-sm font-medium text-gray-700">Date</label><input type="text" id="entryDate" name="field_dt_5c1" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="DD/MM/YYYY" required></div>
+                <div class="relative md:col-span-2"><label class="block text-sm font-medium text-gray-700">Item / Particulars</label><input type="text" id="entryParticulars" name="field_pt_8n3" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="e.g. 1p Swim Shorts" required><div id="dropdown-entryParticulars" class="suggestion-dropdown hidden"></div></div>
+                <div class="relative"><label class="block text-sm font-medium text-gray-700">Style/Type</label><input type="text" id="entryStyle" name="field_st_2m6" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Style or Type"><div id="dropdown-entryStyle" class="suggestion-dropdown hidden"></div></div>
+                <div class="relative"><label class="block text-sm font-medium text-gray-700">Name of Organisation</label><input type="text" id="entryOrg" name="field_or_9k1" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Destination/Org" required><div id="dropdown-entryOrg" class="suggestion-dropdown hidden"></div></div>
+                <div class="relative"><label class="block text-sm font-medium text-gray-700">Bearer/Carrier</label><input type="text" id="entryBearer" name="field_br_4p7" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="e.g. DHL, Mr. Tushar"><div id="dropdown-entryBearer" class="suggestion-dropdown hidden"></div></div>
+                <div class="relative"><label class="block text-sm font-medium text-gray-700">Challan/AWB No.</label><input type="text" id="entryAwb" name="field_aw_1q5" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Tracking No."></div>
+                <div class="relative"><label class="block text-sm font-medium text-gray-700">Remarks</label><input type="text" id="entryRemarks" name="field_rm_6t2" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Remarks"><div id="dropdown-entryRemarks" class="suggestion-dropdown hidden"></div></div>
+                <div class="flex items-end space-x-2 md:col-span-4">
+                    <button type="submit" id="formSubmitBtn" class="bg-brand text-white px-6 py-2 rounded font-bold hover:bg-brand-dark transition shadow">Submit</button>
+                    <button type="button" id="formCancelBtn" onclick="cancelEditMode()" class="hidden bg-orange-500 text-white px-6 py-2 rounded font-bold hover:bg-orange-600 transition shadow"><i class="fas fa-times mr-1"></i>Cancel Edit</button>
+                    <button type="button" id="formClearBtn" onclick="document.getElementById('registerForm').reset();datePickerInstance.setDate(new Date());" class="bg-gray-300 text-gray-700 px-6 py-2 rounded font-bold hover:bg-gray-400 transition shadow">Clear</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ===== COURIER PDF UPLOAD SECTION ===== -->
+        <div class="bg-white p-6 shadow-md rounded-lg mb-6 border border-blue-200">
+            <h2 class="text-lg font-semibold mb-1 border-b pb-2 text-blue-800"><i class="fas fa-shipping-fast mr-2 text-blue-600"></i>Courier File PDF Upload</h2>
+            <p class="text-xs text-gray-500 mb-4"><i class="fas fa-info-circle mr-1 text-blue-400"></i>Upload courier PDFs (DHL, FedEx, Steadfast, Pathao, RedX, etc.). AI reads each page visually and fills all fields automatically.</p>
+            <div class="flex flex-col md:flex-row items-start gap-4">
+                <div class="w-full md:w-56 shrink-0">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Register Type</label>
+                    <select id="courierTypeSelect" class="w-full border border-gray-300 rounded p-2 bg-white">
+                        <option value="incoming">Incoming Register</option>
+                        <option value="outgoing" selected>Outgoing Register</option>
+                    </select>
+                    <p class="text-xs text-gray-400 mt-1">
+                        <i class="fas fa-arrow-circle-right text-teal-500 mr-1"></i><strong>Incoming</strong> = parcel received by you<br>
+                        <i class="fas fa-arrow-circle-left text-blue-500 mr-1"></i><strong>Outgoing</strong> = parcel sent by you
+                    </p>
+                </div>
+                <div class="flex-1 w-full">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Upload PDF(s)</label>
+                    <input type="file" id="pdfUploadCourier" accept="application/pdf" multiple class="hidden" onchange="handleCourierPdfUpload(event)">
+                    <button id="courierUploadBtn" onclick="document.getElementById('pdfUploadCourier').click()" class="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 shadow font-bold transition flex items-center justify-center gap-2">
+                        <i class="fas fa-upload"></i> Upload Courier PDFs
+                    </button>
+                    <div id="pdfProgressWrap" class="hidden mt-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <span id="pdfProgressLabel" class="text-xs font-semibold text-blue-700"></span>
+                            <span id="pdfAiBadge" class="hidden"></span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="pdfProgressBar" class="bg-blue-500 h-2 rounded-full" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <div id="noAiKeyNotice" class="hidden mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                        <i class="fas fa-exclamation-triangle mr-1 text-amber-500"></i>
+                        No OpenRouter API key configured — using pattern extraction only (may be less accurate for scanned PDFs).
+                        <button onclick="openAiSettingsModal()" class="underline font-semibold ml-1 hover:text-amber-900">Set API Keys →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="courierPreview" class="bg-white p-6 shadow-md rounded-lg mb-6 border-2 border-amber-400 hidden animate-slide-down"><div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b-2 border-amber-200 pb-3 gap-2"><div><h2 class="text-lg font-semibold text-amber-800"><i class="fas fa-clipboard-check mr-2 text-amber-600"></i>Review &amp; Edit Before Enrolling</h2><p class="text-xs text-amber-600 mt-1">Verify extracted data. Edit any field, then click Enroll.</p></div><span id="pendingCount" class="bg-amber-200 text-amber-900 px-3 py-1 rounded-full text-sm font-bold shrink-0">0 entries</span></div><div id="courierPreviewList" class="space-y-4 mb-5 max-h-[520px] overflow-y-auto pr-1"></div><div class="flex flex-col sm:flex-row justify-between items-center pt-4 border-t-2 border-amber-200 gap-3"><button onclick="discardCourierEntries()" class="bg-gray-300 text-gray-700 px-5 py-2.5 rounded-lg font-bold hover:bg-gray-400 transition w-full sm:w-auto"><i class="fas fa-times mr-2"></i>Discard All</button><button onclick="enrollCourierEntries()" class="bg-green-600 text-white px-8 py-2.5 rounded-lg font-bold hover:bg-green-700 transition shadow-lg w-full sm:w-auto text-base"><i class="fas fa-check-circle mr-2"></i>Enroll All</button></div></div>
+
+        <div class="bg-white p-4 shadow-md rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+            <div class="flex space-x-2 w-full md:w-auto">
+                <button id="tabIncoming" onclick="switchTab('incoming')" class="px-4 py-2 rounded font-bold text-sm transition w-full md:w-auto tab-active">Incoming</button>
+                <button id="tabOutgoing" onclick="switchTab('outgoing')" class="px-4 py-2 rounded font-bold text-sm transition w-full md:w-auto bg-gray-200 text-gray-700 hover:bg-gray-300">Outgoing</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end"><select id="monthFilter" class="border border-gray-300 rounded p-2 focus:ring-brand focus:border-brand"><option value="all">All Months</option></select><button id="pasteImportBtn" onclick="openPasteImport()" class="hidden bg-amber-600 text-white px-3 py-2 rounded hover:bg-amber-700 transition shadow text-sm"><i class="fas fa-paste mr-1"></i> Paste Import</button><button id="downloadPdfBtn" onclick="generatePDF()" class="hidden bg-brand text-white px-3 py-2 rounded hover:bg-brand-dark transition shadow text-sm"><i class="fas fa-file-download mr-1"></i> Download PDF</button><button id="deleteSelectedBtn" onclick="promptBulkDelete(event)" class="hidden bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition shadow text-sm"><i class="fas fa-trash-alt mr-1"></i> Delete Marked</button><button id="manageSuggestionsBtn" onclick="openSuggestionManager()" class="hidden bg-indigo-600 text-white px-3 py-2 rounded hover:bg-indigo-700 transition shadow text-sm"><i class="fas fa-list-alt mr-1"></i> Manage</button><div class="relative w-full md:w-64"><input type="text" id="searchInput" name="field_srch_0h8" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" placeholder="Search entries..." class="border border-gray-300 rounded p-2 w-full focus:ring-brand focus:border-brand"></div></div>
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg overflow-x-auto"><table class="min-w-full bg-white"><thead><tr class="bg-brand-light text-brand-dark uppercase text-xs leading-normal border-b-2 border-brand"><th id="thSelectAll" class="py-3 px-4 text-left w-10 hidden"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th><th class="py-3 px-4 text-left w-10">#</th><th class="py-3 px-4 text-left">DATE</th><th class="py-3 px-4 text-left">PARTICULARS</th><th class="py-3 px-4 text-left">STYLE</th><th class="py-3 px-4 text-left">ORGANISATION</th><th class="py-3 px-4 text-left">BEARER/CARRIER</th><th class="py-3 px-4 text-left">AWB/CHALLAN</th><th class="py-3 px-4 text-left">REMARKS</th><th class="py-3 px-4 text-left">ACTION</th></tr></thead><tbody id="tableBody" class="text-gray-600 text-sm font-light"></tbody></table></div>
+    </div>
+
+    <script>
+        // ── PDF.js worker ──
+        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const PDFJS_CMAP_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/';
+
+        var DEFAULT_SERVER_CONFIG={apiKey:"AIzaSyB-sbCQRszLSnJv1ZkLD2Go4hQCvHImgxE",authDomain:"product-register-app.firebaseapp.com",databaseURL:"https://product-register-app-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"product-register-app",storageBucket:"product-register-app.firebasestorage.app",messagingSenderId:"173008706212",appId:"1:173008706212:web:84954fc4ce14883a02e431"};
+        (function(){try{var sc=localStorage.getItem('serverConfig_yy');if(sc)DEFAULT_SERVER_CONFIG=JSON.parse(sc);}catch(e){}}());
+        var firebaseConfig=DEFAULT_SERVER_CONFIG;
+        let db,isFirebaseConnected=false;try{firebase.initializeApp(firebaseConfig);db=firebase.database();isFirebaseConnected=true}catch(e){console.error(e)}
+
+        /* ===== Device Identity ===== */
+        function _fnv32(s){var h=0x811c9dc5>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return('00000000'+(h>>>0).toString(16)).slice(-8);}
+        function _canvasFP(){try{var c=document.createElement('canvas');c.width=220;c.height=60;var x=c.getContext('2d');x.textBaseline='top';x.font='bold 14px Arial,sans-serif';x.fillStyle='#f05c37';x.fillRect(0,0,220,60);x.fillStyle='#fff';x.fillText('DeviceFingerprint\u2022YYK',2,5);x.font='italic 11px Georgia';x.fillStyle='rgba(60,120,255,0.85)';x.fillText('ABC\u03B1\u03B2\u03B3\u00E9\u00F1',10,28);x.beginPath();x.arc(180,30,22,0,Math.PI*2);x.fillStyle='rgba(20,200,100,0.6)';x.fill();return c.toDataURL().slice(-80);}catch(e){return 'nc';}}
+        function _buildFP(){var n=navigator,s=screen,tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone;}catch(e){}var parts=[(n.userAgent||'').replace(/\d+\.\d+\.\d+/g,'X'),n.language||n.userLanguage||'',n.hardwareConcurrency||'',n.deviceMemory||'',s.width+'x'+s.height,s.availWidth+'x'+s.availHeight,s.colorDepth||'',s.pixelDepth||'',n.platform||'',tz,(n.maxTouchPoints||0),_canvasFP()];return'fp_'+_fnv32(parts.join('||'));}
+        function getDeviceId(){try{var stored=localStorage.getItem('yykDeviceId');if(stored&&stored.startsWith('fp_'))return stored;}catch(e){}var fp=_buildFP();try{localStorage.setItem('yykDeviceId',fp);}catch(e){}return fp;}
+        const currentDeviceId=getDeviceId();
+        window._yykDID=currentDeviceId;
+
+        const SUPER_USER_PASSWORD='ifarrafi';
+        let isAdmin=false,deleteTargetId=null,isBulkDelete=false,datePickerInstance=null,currentTab='incoming',registers=[],pendingCourierEntries=[],editingSuggestionKey=null;
+        let editingId=null,editScrollTargetId=null;
+
+        const baseSuggestions={
+            particulars:{},styles:{},
+            orgNames:{"Hams Garments Ltd":100,"Eve Garments Ltd":100,"Fashion Flow Ltd":100,"Yik Yue (HK)":100,"Dunnes Stores":100,"SDV":100},
+            bearers:{"DHL":100,"Steadfast":100,"Pathao":100,"Uber":100,"Received by Mr. Bulbul":100,"Sent by Mr. Tushar":100},
+            remarks:{}
+        };
+        let dynamicSuggestions={particulars:{},styles:{},orgNames:{},bearers:{},remarks:{}};
+
+        function sanitizeFirebaseKeys(obj){if(typeof obj!=='object'||obj===null)return obj;if(Array.isArray(obj))return obj.map(sanitizeFirebaseKeys);const n={};for(const k in obj){if(obj.hasOwnProperty(k)){const sk=k.replace(/\./g,'%2E').replace(/#/g,'%23').replace(/\$/g,'%24').replace(/\//g,'%2F').replace(/\[/g,'%5B').replace(/\]/g,'%5D');n[sk]=sanitizeFirebaseKeys(obj[k])}}return n}
+        function desanitizeFirebaseKeys(obj){if(typeof obj!=='object'||obj===null)return obj;if(Array.isArray(obj))return obj.map(desanitizeFirebaseKeys);const n={};for(const k in obj){if(obj.hasOwnProperty(k)){try{n[decodeURIComponent(k)]=desanitizeFirebaseKeys(obj[k])}catch(e){n[k]=desanitizeFirebaseKeys(obj[k])}}}return n}
+
+        function saveData(k,d){if(isFirebaseConnected)db.ref(k).set(sanitizeFirebaseKeys(d)).catch(e=>console.error(e));else try{sessionStorage.setItem(k,JSON.stringify(d))}catch(e){}}
+        function commitAction(){saveData('registers',registers);saveData('suggestions',dynamicSuggestions);processAndRender()}
+        function getMergedSuggestions(c){let m={...baseSuggestions[c]};for(const k in dynamicSuggestions[c])m[k]=(m[k]||0)+dynamicSuggestions[c][k];return Object.entries(m).filter(i=>i[1]>0).sort((a,b)=>b[1]-a[1]).map(i=>i[0])}
+        function populateDropdown(dd,cat,ft){dd.innerHTML='';const all=getMergedSuggestions(cat);const f=ft?all.filter(i=>i.toLowerCase().includes(ft.toLowerCase())):all;f.forEach(item=>{const d=document.createElement('div');d.className='suggestion-item';d.textContent=item;d.onmousedown=e=>{e.preventDefault();document.getElementById(dd.id.replace('dropdown-','')).value=item;dd.classList.add('hidden')};dd.appendChild(d)});dd.classList.toggle('hidden',f.length===0)}
+        function setupSuggestionInput(inputId,cat){const inp=document.getElementById(inputId);const dd=document.getElementById('dropdown-'+inputId);if(!inp||!dd)return;inp.addEventListener('input',()=>populateDropdown(dd,cat,inp.value));inp.addEventListener('focus',()=>populateDropdown(dd,cat,inp.value));inp.addEventListener('blur',()=>setTimeout(()=>dd.classList.add('hidden'),200));}
+        function addSuggestion(cat,val){if(!val||!val.trim())return;if(!dynamicSuggestions[cat])dynamicSuggestions[cat]={};dynamicSuggestions[cat][val.trim()]=(dynamicSuggestions[cat][val.trim()]||0)+1;}
+        function escapeHtml(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+        /* ── Toast ── */
+        let _toastTimer=null;
+        function showToast(msg,type){
+            const t=document.getElementById('toastContainer');
+            t.textContent=msg;t.className='toast toast-'+(type||'info');
+            void t.offsetWidth;t.classList.add('show');
+            if(_toastTimer)clearTimeout(_toastTimer);
+            _toastTimer=setTimeout(()=>t.classList.remove('show'),4000);
+        }
+
+        /* ── Date helpers ── */
+        function parseDateSmart(s){
+            if(!s)return null;
+            s=String(s).trim();
+            let m;
+            m=s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);if(m)return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+            m=s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+            m=s.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
+            if(m){const months={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};const mn=months[m[2].toLowerCase().slice(0,3)];if(mn)return m[3]+'-'+mn+'-'+m[1].padStart(2,'0');}
+            const d=new Date(s);if(!isNaN(d.getTime()))return d.toISOString().slice(0,10);
+            return null;
+        }
+
+        /* ===== Paste Import ===== */
+        window.openPasteImport=function(){document.getElementById('pasteImportModal').style.display='flex'};
+        window.closePasteImport=function(){document.getElementById('pasteImportModal').style.display='none'};
+        window.clearPasteArea=function(){document.getElementById('pasteArea').value='';document.getElementById('parseStatus').textContent='';document.getElementById('columnMappingSection').classList.add('hidden');document.getElementById('previewSection').classList.add('hidden')};
+        let _parsedRows=[],_parsedHeaders=[];
+        const FIELD_KEYS=['date','particulars','style','orgName','bearer','awbNo','remarks'];
+        const FIELD_LABELS=['Date','Particulars/Item','Style/Type','Organisation','Bearer/Carrier','AWB/Challan No.','Remarks'];
+        const FIELD_NONE='(ignore)';
+        function _guessColIndex(header){const h=header.toLowerCase().trim();if(/date/.test(h))return 0;if(/part|item|goods|desc|content/.test(h))return 1;if(/style|type/.test(h))return 2;if(/org|company|name|dest|consign|shipper/.test(h))return 3;if(/bearer|carrier|courier|by/.test(h))return 4;if(/awb|challan|track|waybill|ref/.test(h))return 5;if(/remark|note|comment/.test(h))return 6;return -1;}
+        window.parsePastedData=function(){
+            const raw=document.getElementById('pasteArea').value.trim();
+            const type=document.getElementById('pasteTypeSelect').value;
+            if(!raw){document.getElementById('parseStatus').textContent='Nothing to parse.';return;}
+            const lines=raw.split('\n').filter(l=>l.trim());
+            if(lines.length===0){document.getElementById('parseStatus').textContent='No data found.';return;}
+            let rows=lines.map(l=>l.split(/\t/).map(c=>c.trim()));
+            const maxCols=Math.max(...rows.map(r=>r.length));
+            rows=rows.map(r=>{while(r.length<maxCols)r.push('');return r;});
+            const firstRow=rows[0];
+            let hasHeader=firstRow.some(c=>/date|part|item|org|awb|challan|bearer|remark|style/i.test(c));
+            _parsedHeaders=hasHeader?firstRow:Array.from({length:maxCols},(_,i)=>'Col '+(i+1));
+            _parsedRows=hasHeader?rows.slice(1):rows;
+            const mapping=document.getElementById('columnMapping');
+            mapping.innerHTML='';
+            _parsedHeaders.forEach((h,i)=>{
+                const guess=_guessColIndex(h);
+                const div=document.createElement('div');div.className='mapping-col shrink-0';
+                div.innerHTML=`<div class="text-xs font-semibold text-gray-600 mb-1 truncate max-w-[110px]" title="${escapeHtml(h)}">${escapeHtml(h)}</div><select class="col-map-sel border border-gray-300 rounded p-1 w-full" data-col="${i}">`+
+                    `<option value="-1">${FIELD_NONE}</option>`+FIELD_KEYS.map((k,j)=>`<option value="${j}"${guess===j?' selected':''}>${FIELD_LABELS[j]}</option>`).join('')+`</select>`;
+                mapping.appendChild(div);
+            });
+            document.getElementById('columnMappingSection').classList.remove('hidden');
+            _updatePreview(type);
+            document.getElementById('previewSection').classList.remove('hidden');
+        };
+        function _updatePreview(type){
+            const sels=document.querySelectorAll('.col-map-sel');
+            const colMap={};sels.forEach(s=>{const fi=parseInt(s.value);if(fi>=0)colMap[parseInt(s.dataset.col)]=fi;});
+            let entries=_parsedRows.filter(r=>r.some(c=>c.trim())).map(r=>{const e={type:type,date:'',particulars:'',style:'',orgName:'',bearer:'',awbNo:'',remarks:''};Object.entries(colMap).forEach(([ci,fi])=>{const k=FIELD_KEYS[fi];if(k)e[k]=(r[ci]||'').trim();});if(e.date)e.date=parseDateSmart(e.date)||e.date;return e;});
+            const tbody=document.getElementById('previewBody');const thead=document.getElementById('previewHead');
+            document.getElementById('previewCount').textContent=entries.length;
+            const dups=entries.filter(e=>e.awbNo&&registers.some(m=>m.awbNo===e.awbNo&&m.awbNo!==''));
+            document.getElementById('duplicateCount').textContent=dups.length;
+            document.getElementById('duplicateInfo').classList.toggle('hidden',dups.length===0);
+            thead.innerHTML='<tr>'+['Date','Particulars','Style','Organisation','Bearer','AWB/Challan','Remarks'].map(h=>`<th class="py-2 px-3 text-left bg-gray-100 text-xs font-semibold text-gray-600">${h}</th>`).join('')+'</tr>';
+            tbody.innerHTML=entries.map(e=>{const isDup=e.awbNo&&registers.some(m=>m.awbNo===e.awbNo&&m.awbNo!=='');return`<tr class="${isDup?'bg-orange-50 line-through text-orange-400':''}"><td class="py-1.5 px-3 text-xs whitespace-nowrap">${escapeHtml(e.date)}</td><td class="py-1.5 px-3 text-xs">${escapeHtml(e.particulars)}</td><td class="py-1.5 px-3 text-xs">${escapeHtml(e.style)}</td><td class="py-1.5 px-3 text-xs">${escapeHtml(e.orgName)}</td><td class="py-1.5 px-3 text-xs">${escapeHtml(e.bearer)}</td><td class="py-1.5 px-3 text-xs">${escapeHtml(e.awbNo)}</td><td class="py-1.5 px-3 text-xs">${escapeHtml(e.remarks)}</td></tr>`;}).join('');
+            window._pastePreviewEntries=entries;
+        }
+        document.addEventListener('change',function(e){if(e.target.classList.contains('col-map-sel')){_updatePreview(document.getElementById('pasteTypeSelect').value);}});
+        window.importPastedData=function(){
+            const entries=window._pastePreviewEntries||[];if(!entries.length)return;
+            let imp=0,sk=0;
+            entries.forEach(e=>{const dup=e.awbNo&&registers.some(m=>m.awbNo===e.awbNo&&m.awbNo!=='');if(dup){sk++;return;}e.deviceId=currentDeviceId;e._id='paste_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);registers.push(e);addSuggestion('particulars',e.particulars);addSuggestion('styles',e.style);addSuggestion('orgNames',e.orgName);addSuggestion('bearers',e.bearer);addSuggestion('remarks',e.remarks);imp++;});
+            closePasteImport();commitAction();
+            showToast(`Imported ${imp} entries!${sk>0?' Skipped '+sk+' duplicates.':''}`,'success');
+        };
+
+        /* ===== API Keys ===== */
+        const OPENROUTER_ENDPOINT='https://openrouter.ai/api/v1/chat/completions';
+        const OPENROUTER_MODEL='openai/gpt-4o-mini';
+
+        /* ── Multiple OpenRouter keys storage ── */
+        let cachedOpenRouterKeys=[];
+        (function(){
+            try{
+                const stored=localStorage.getItem('openrouterApiKeys_yy');
+                if(stored){
+                    const arr=JSON.parse(stored);
+                    if(Array.isArray(arr))cachedOpenRouterKeys=arr.filter(k=>k&&k.trim());
+                } else {
+                    // Migrate from old single-key storage
+                    const old=localStorage.getItem('openrouterApiKey_yy');
+                    if(old&&old.trim())cachedOpenRouterKeys=[old.trim()];
+                }
+            }catch(e){}
+        }());
+
+        function getOpenRouterKeys(){return cachedOpenRouterKeys.filter(k=>k&&k.trim());}
+
+        function setOpenRouterKeys(keys){
+            cachedOpenRouterKeys=(keys||[]).filter(k=>k&&k.trim());
+            if(isFirebaseConnected){
+                if(cachedOpenRouterKeys.length)db.ref('settings/openrouterApiKeys').set(cachedOpenRouterKeys).catch(e=>console.error(e));
+                else db.ref('settings/openrouterApiKeys').remove().catch(e=>console.error(e));
+                // Clean up old single-key path
+                db.ref('settings/openrouterApiKey').remove().catch(e=>{});
+            }
+            try{
+                if(cachedOpenRouterKeys.length)localStorage.setItem('openrouterApiKeys_yy',JSON.stringify(cachedOpenRouterKeys));
+                else localStorage.removeItem('openrouterApiKeys_yy');
+            }catch(e){}
+        }
+
+        function initOpenRouterKeySync(){
+            if(isFirebaseConnected){
+                db.ref('settings/openrouterApiKeys').on('value',snap=>{
+                    const v=snap.val();
+                    if(Array.isArray(v))cachedOpenRouterKeys=v.filter(k=>k&&k.trim());
+                    else if(v&&typeof v==='string')cachedOpenRouterKeys=[v];
+                    else cachedOpenRouterKeys=[];
+                    try{
+                        if(cachedOpenRouterKeys.length)localStorage.setItem('openrouterApiKeys_yy',JSON.stringify(cachedOpenRouterKeys));
+                        else localStorage.removeItem('openrouterApiKeys_yy');
+                    }catch(e){}
+                });
+                // One-time migration from old single key
+                db.ref('settings/openrouterApiKey').once('value',snap=>{
+                    const v=snap.val();
+                    if(v&&typeof v==='string'&&v.trim()&&!cachedOpenRouterKeys.includes(v.trim())){
+                        cachedOpenRouterKeys=[v.trim(),...cachedOpenRouterKeys].filter(k=>k&&k.trim());
+                        db.ref('settings/openrouterApiKeys').set(cachedOpenRouterKeys).catch(e=>{});
+                        db.ref('settings/openrouterApiKey').remove().catch(e=>{});
+                    }
+                });
+            }
+        }
+
+        window.toggleServerAiMenu=function(e){if(e)e.stopPropagation();document.getElementById('serverAiMenu').classList.toggle('hidden');};
+        window.closeServerAiMenu=function(){const m=document.getElementById('serverAiMenu');if(m)m.classList.add('hidden');};
+        document.addEventListener('click',function(e){const wrap=document.getElementById('serverAiWrap');if(wrap&&!wrap.contains(e.target))closeServerAiMenu();});
+
+        function renderOrKeyInputs(){
+            const container=document.getElementById('orKeysContainer');
+            if(!container)return;
+            const keys=cachedOpenRouterKeys.slice();
+            container.innerHTML='';
+            for(let i=0;i<5;i++){
+                const val=(keys[i]||'').replace(/"/g,'&quot;');
+                const isFirst=i===0;
+                const row=document.createElement('div');
+                row.className='space-y-1';
+                row.innerHTML=`<label class="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                    <span class="ai-badge-openrouter inline-flex items-center gap-1"><i class="fas fa-key"></i> Key ${i+1}</span>
+                    ${isFirst?'<span class="text-green-600 font-medium">— Primary</span>':'<span class="text-gray-400">— Fallback '+(i)+'</span>'}
+                </label>
+                <input type="text" id="or_key_${i}" name="field_or${i}_9z${i}" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')"
+                    class="w-full border border-purple-300 rounded-lg p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                    placeholder="sk-or-v1-..." value="${escapeHtml(keys[i]||'')}">`;
+                container.appendChild(row);
+            }
+        }
+
+        window.openAiSettingsModal=function(){
+            renderOrKeyInputs();
+            document.getElementById('aiSettingsModal').classList.remove('hidden');
+            document.body.style.overflow='hidden';
+        };
+        window.closeAiSettingsModal=function(){
+            document.getElementById('aiSettingsModal').classList.add('hidden');
+            document.body.style.overflow='';
+        };
+        window.saveAiSettings=function(){
+            const keys=[];
+            for(let i=0;i<5;i++){
+                const inp=document.getElementById('or_key_'+i);
+                if(inp&&inp.value.trim())keys.push(inp.value.trim());
+            }
+            setOpenRouterKeys(keys);
+            closeAiSettingsModal();
+            showToast(keys.length?`${keys.length} API key${keys.length>1?'s':''} saved!`:'API keys cleared.','success');
+        };
+
+        /* ── Error modals ── */
+        window.showApiErrorModal=function(title,message,keyCount){
+            document.getElementById('apiErrorTitle').textContent=title||'AI API Error';
+            document.getElementById('apiErrorMessage').textContent=message||'An unknown error occurred';
+            const hint=keyCount>1
+                ?`All ${keyCount} OpenRouter key(s) were tried — all failed. PDF data extracted using pattern matching instead.`
+                :'Check your API key, network connection, and usage quota.';
+            document.getElementById('apiErrorHint').textContent=hint;
+            document.getElementById('apiErrorSubtitle').textContent='Pattern extraction used as fallback — results may be less accurate';
+            const box=document.getElementById('apiErrorModal');
+            box.classList.remove('hidden');
+            // Shake animation
+            const inner=document.getElementById('apiErrorBox');
+            inner.classList.remove('shake');
+            void inner.offsetWidth;
+            inner.classList.add('shake');
+        };
+        window.closeApiErrorModal=function(){document.getElementById('apiErrorModal').classList.add('hidden');};
+
+        window.showPdfErrorModal=function(fileName,message){
+            document.getElementById('pdfErrorFileName').textContent='File: '+fileName;
+            document.getElementById('pdfErrorMessage').textContent=message||'Unknown parse error';
+            document.getElementById('pdfErrorModal').classList.remove('hidden');
+        };
+        window.closePdfErrorModal=function(){document.getElementById('pdfErrorModal').classList.add('hidden');};
+
+        /* ── Build the shared AI extraction prompt ── */
+        function buildAiSystemPrompt(selectedType){
+            const isIncoming=selectedType==='incoming';
+            const dir=isIncoming
+                ?'SENDER / SHIPPER (the party who SENT the parcel to you — the originating/sending company)'
+                :'RECEIVER / CONSIGNEE (the party who will RECEIVE the parcel — the destination company)';
+            const countryDir=isIncoming
+                ?'SENDER / SHIPPER address block (the sending/originating side — NOT the receiver or consignee side)'
+                :'RECEIVER / CONSIGNEE address block (the destination/receiving side — NOT the sender or shipper side)';
+            return 'You are an expert courier waybill data extractor. You will receive one or more rendered images of a courier document (DHL, FedEx, UPS, TNT, Aramex, EMS, Steadfast, Pathao, RedX, Paperfly, eCourier, MFT or any other courier). The waybill always has TWO parties: (1) SHIPPER/SENDER — the party who sent the parcel; (2) CONSIGNEE/RECEIVER — the party who receives it.\n\n'
+                +'Read every field, label, stamp, barcode label, and address block carefully. Extract and return ONLY a valid JSON object with exactly these keys:\n'
+                +'"date" — shipment/pickup date in YYYY-MM-DD format\n'
+                +'"waybillNo" — AWB/waybill/tracking number (digits and hyphens only; take the largest prominent number)\n'
+                +'"orgName" — company/organisation name of the '+dir+' — MUST be a company name, NEVER a person\'s individual name\n'
+                +'"country" — country from the '+countryDir+' (e.g. "Bangladesh", "United Kingdom")\n'
+                +'"item" — description of shipped goods/contents (e.g. "Fabric Samples", "Garment Documents")\n'
+                +'"qty" — quantity with unit (e.g. "3 pcs", "1 carton") or empty string\n'
+                +'"bearer" — courier/carrier company name as printed (e.g. "DHL", "FedEx", "Steadfast")\n'
+                +'"senderContact" — individual person name in the SHIPPER/SENDER block only. Empty string if not found.\n'
+                +'"receiverContact" — individual person name in the CONSIGNEE/RECEIVER block only. Empty string if not found.\n\n'
+                +'Rules:\n'
+                +'- The document may be a scanned image — read it visually from the images.\n'
+                +'- "waybillNo": include only the main tracking/AWB number, not sub-numbers.\n'
+                +'- "bearer": the courier company name (DHL, FedEx, UPS, Steadfast, Pathao, RedX, Paperfly, eCourier, MFT, Aramex, TNT, Royal Mail, EMS, etc.) or whatever is printed on the document.\n'
+                +'- "date": convert any format (DD/MM/YYYY, MM-DD-YYYY, etc.) to YYYY-MM-DD.\n'
+                +'- Use empty string for any field you cannot confidently read.\n'
+                +'Return ONLY the JSON object. No markdown, no explanation.';
+        }
+
+        /* ── OpenRouter extraction (accepts explicit key, throws on failure) ── */
+        async function aiExtractViaOpenRouter(fullText,selectedType,pageImages,apiKey){
+            if(!apiKey)throw new Error('No API key provided');
+            const controller=new AbortController();
+            const timeout=setTimeout(()=>controller.abort(),45000);
+            try{
+                const systemPrompt=buildAiSystemPrompt(selectedType);
+                let userContent;
+                if(pageImages&&pageImages.length>0){
+                    userContent=[{type:'text',text:'Courier waybill PDF rendered as image(s). Read every label, box, stamp, and address block carefully. Extract all fields as JSON.'}];
+                    pageImages.forEach(function(dataUrl){userContent.push({type:'image_url',image_url:{url:dataUrl,detail:'auto'}});});
+                    if(fullText&&fullText.trim().length>20){userContent.push({type:'text',text:'Supplementary raw text:\n'+fullText.slice(0,3000)});}
+                }else{
+                    userContent='Courier PDF text:\n\n'+fullText.slice(0,8000);
+                }
+                const resp=await fetch(OPENROUTER_ENDPOINT,{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey,'HTTP-Referer':window.location.origin,'X-Title':'YIK YUE Product Register'},
+                    body:JSON.stringify({model:OPENROUTER_MODEL,messages:[{role:'system',content:systemPrompt},{role:'user',content:userContent}],response_format:{type:'json_object'},temperature:0,max_tokens:600}),
+                    signal:controller.signal
+                });
+                clearTimeout(timeout);
+                if(!resp.ok){
+                    let errMsg='HTTP '+resp.status+' '+resp.statusText;
+                    try{const eBody=await resp.json();errMsg=eBody?.error?.message||eBody?.message||errMsg;}catch(ignored){}
+                    throw new Error(errMsg);
+                }
+                const data=await resp.json();
+                const raw=data?.choices?.[0]?.message?.content;
+                if(!raw)throw new Error('Empty response from OpenRouter');
+                let ai;
+                try{ai=JSON.parse(raw);}catch(e){const m=raw.match(/\{[\s\S]*\}/);if(!m)throw new Error('Non-JSON response');ai=JSON.parse(m[0]);}
+                ai._source='openrouter';
+                return ai;
+            }finally{
+                clearTimeout(timeout);
+            }
+        }
+
+        /* ── Fallback: try each key in sequence ── */
+        async function aiExtractWithFallback(fullText,selectedType,pageImages){
+            const keys=getOpenRouterKeys();
+            if(keys.length===0)return null;
+            let lastErr=null;
+            for(let i=0;i<keys.length;i++){
+                try{
+                    const result=await aiExtractViaOpenRouter(fullText,selectedType,pageImages,keys[i]);
+                    if(result)return result;
+                }catch(err){
+                    lastErr=err;
+                    console.warn(`OpenRouter key ${i+1} failed:`,err.message);
+                    if(i<keys.length-1){
+                        showToast(`⚠️ Key ${i+1} failed — trying key ${i+2}…`,'info');
+                    }
+                }
+            }
+            // All keys failed — show error modal
+            const msg=lastErr?lastErr.message:'All API keys failed';
+            showApiErrorModal('OpenRouter AI Failed',msg,keys.length);
+            return null;
+        }
+
+        /* ── Main AI extractor ── */
+        async function aiExtractAllFields(fullText,selectedType,pageImages){
+            return await aiExtractWithFallback(fullText,selectedType,pageImages);
+        }
+
+        /* ── Pattern-based extraction (no key needed, best-effort) ── */
+        function patternExtractEntry(fullText,selectedType,entry){
+            // ── AWB / tracking number ──
+            const awbPatterns=[
+                /\b(\d{10})\b/g,
+                /AWB\s*(?:No\.?|#|Number)?\s*[:\-]?\s*([\d][\d \-]{7,16})/i,
+                /(?:Waybill|Airwaybill)\s*(?:No\.?|#)?\s*[:\-]?\s*([\d]{8,14})/i,
+                /(?:Tracking|Reference|Shipment)\s*(?:No\.?|#|ID)?\s*[:\-]?\s*([\d][\d \-]{7,16})/i,
+                /(?:^|\n)\s*(\d{9,14})\s*(?:\n|$)/m,
+            ];
+            for(const pat of awbPatterns){
+                const m=typeof pat.exec==='function'&&pat.global?null:fullText.match(pat);
+                if(m&&m[1]){const n=m[1].replace(/[^\d]/g,'');if(n.length>=8&&n.length<=15){entry.awbNo=n;break;}}
+                if(pat.global){let gm;pat.lastIndex=0;while((gm=pat.exec(fullText))!==null){const n=gm[1]||gm[0];const d=n.replace(/[^\d]/g,'');if(d.length>=8&&d.length<=15){entry.awbNo=d;break;}}}
+                if(entry.awbNo)break;
+            }
+            // ── Date ──
+            const datePatterns=[
+                /(?:Shipment|Ship|Pickup|Dispatch|Collection)\s*Date\s*[:\-]?\s*(\d{4}[-\/]\d{2}[-\/]\d{2})/i,
+                /(?:Shipment|Ship|Pickup|Dispatch)\s*Date\s*[:\-]?\s*(\d{1,2}[\s\/\-\.]\w{3}[\s\/\-\.]\d{2,4})/i,
+                /(?:Shipment|Ship|Pickup|Dispatch)\s*Date\s*[:\-]?\s*(\d{1,2}[\s\/\-\.]\d{1,2}[\s\/\-\.]\d{2,4})/i,
+                /(\d{4}-\d{2}-\d{2})\s+MY\s*DHL/i,
+                /Date\s*[:\-]?\s*(\d{1,2}[\s\/\-\.]\d{1,2}[\s\/\-\.]\d{2,4})/im,
+                /\b(\d{2}[\-\/]\d{2}[\-\/]\d{4})\b/,
+                /\b(\d{4}[\-\/]\d{2}[\-\/]\d{2})\b/,
+            ];
+            for(const pat of datePatterns){
+                const m=fullText.match(pat);
+                if(m&&m[1]){const d=parseDateSmart(m[1]);if(d){entry.date=d;break;}}
+            }
+            // ── Carrier ──
+            const carriers=[['DHL'],['FedEx','Federal Express'],['UPS'],['Aramex'],['TNT'],['Royal Mail'],['EMS','Express Mail'],['Steadfast'],['Pathao'],['RedX','Red X'],['Paperfly'],['eCourier','e-Courier'],['MFT'],['Leopards'],['TCS'],['Blue Dart'],['DTDC']];
+            for(const names of carriers){
+                const pat=new RegExp('\\b('+names.join('|')+')\\b','i');
+                const m=fullText.match(pat);
+                if(m){entry.bearer=names[0];break;}
+            }
+            // ── Organisation ──
+            const cleanOrg=s=>s.trim().replace(/\s+/g,' ').replace(/\s*(Contact|Attention|Attn|Address|Phone|Tel|Fax|Email|Ref)[:\s].*$/i,'').trim();
+            const countryList=['United Kingdom','United States','Bangladesh','India','China','Germany','France','Italy','Spain','Netherlands','Belgium','Sweden','Norway','Denmark','Finland','Switzerland','Austria','Australia','Japan','South Korea','Singapore','Hong Kong','Thailand','Vietnam','Indonesia','Malaysia','Philippines','Pakistan','Sri Lanka','Nepal','UAE','Saudi Arabia','Turkey','Brazil','Canada','Mexico','Ireland','Portugal','Poland','Czech Republic','New Zealand','South Africa'];
+            let orgMatch=null,orgBlockStart=-1;
+            if(selectedType==='incoming'){
+                const pats=[
+                    /(?:Shipper|Sender|From)\s*(?:Name|Company)?\s*[:\-]?\s*\n?\s*([A-Za-z][^\n\r]{2,80})/i,
+                    /(?:^|\n)\s*From\s*[:\-]\s*([A-Za-z][^\n\r]{2,80})/im,
+                    /\bShipper\b[^\n]*\n\s*([A-Za-z][^\n\r]{2,80})/i,
+                ];
+                for(const p of pats){const m=fullText.match(p);if(m){orgMatch=m;orgBlockStart=fullText.indexOf(m[0]);break;}}
+            }else{
+                const pats=[
+                    /(?:Consignee|Receiver|Recipient|To)\s*(?:Name|Company)?\s*[:\-]?\s*\n?\s*([A-Za-z][^\n\r]{2,80})/i,
+                    /(?:^|\n)\s*To\s*[:\-]\s*([A-Za-z][^\n\r]{2,80})/im,
+                    /\bConsignee\b[^\n]*\n\s*([A-Za-z][^\n\r]{2,80})/i,
+                ];
+                for(const p of pats){const m=fullText.match(p);if(m){orgMatch=m;orgBlockStart=fullText.indexOf(m[0]);break;}}
+            }
+            if(orgMatch&&orgMatch[1]){
+                entry.orgName=cleanOrg(orgMatch[1]);
+                if(orgBlockStart!==-1){
+                    const blockText=fullText.substring(orgBlockStart,orgBlockStart+800);
+                    let foundCountry='';
+                    for(const line of blockText.split('\n').map(l=>l.trim()).filter(l=>l)){
+                        for(const c of countryList){if(new RegExp('\\b'+c.replace(/\s+/g,'\\s+')+'\\b','i').test(line)){foundCountry=c;break;}}
+                        if(foundCountry)break;
+                    }
+                    if(foundCountry&&entry.orgName){const suffix=foundCountry==='United Kingdom'?'UK':foundCountry;entry.orgName+=' ('+suffix+')';}
+                }
+            }
+            // ── Contents / Particulars ──
+            const contPatterns=[
+                /(?:Contents|Description of Goods|Goods Description|Nature of Goods|Item Description|Commodity|Shipment Contents)\s*[:\-]?\s*\n?\s*([A-Za-z][^\n\r]{1,120})/i,
+                /(?:Content|Reference|Description)\s*[:\-]?\s*([A-Za-z][^\n\r]{1,80})/i,
+            ];
+            for(const p of contPatterns){const m=fullText.match(p);if(m&&m[1]){entry.particulars=m[1].trim();break;}}
+            const qtyMatch=fullText.match(/\b(\d+)\s*(PCS|PIECES|SET|SETS|PAIR|PAIRS|ROLL|ROLLS|BOX|BOXES|UNIT|UNITS|DOZEN|EA|PACK|PACKS|CTN|CTNS|SAMPLE|SAMPLES|KG|KGS|CARTON|CARTONS)\b/i);
+            if(qtyMatch&&entry.particulars)entry.particulars=qtyMatch[1]+' '+qtyMatch[2].toLowerCase()+' '+entry.particulars;
+            else if(qtyMatch)entry.particulars=qtyMatch[1]+' '+qtyMatch[2].toLowerCase();
+            if(!entry.particulars&&entry.awbNo)entry.particulars='Courier Document (AWB: '+entry.awbNo+')';
+            return entry;
+        }
+
+        /* ── Apply AI result to entry object ── */
+        function applyAiResult(ai,entry,selectedType){
+            if(ai.date)entry.date=parseDateSmart(ai.date)||ai.date;
+            if(ai.waybillNo){
+                const n=String(ai.waybillNo).replace(/[^\d\-]/g,'').replace(/^-+|-+$/g,'');
+                if(n.replace(/[^\d]/g,'').length>=6)entry.awbNo=n;
+                else entry.awbNo=String(ai.waybillNo).trim();
+            }
+            if(ai.bearer&&ai.bearer.trim())entry.bearer=ai.bearer.trim();
+            if(ai.orgName&&ai.orgName.trim()){
+                let org=ai.orgName.trim();
+                const country=(ai.country&&ai.country.trim())||'';
+                if(country&&!/\([^()]*\)\s*$/.test(org))org+=' ('+country+')';
+                entry.orgName=org;
+            }
+            if(ai.item||ai.qty){
+                const combined=[(ai.qty||'').trim(),(ai.item||'').trim()].filter(Boolean).join(' ');
+                if(combined)entry.particulars=combined;
+            }
+            const _cpRaw=selectedType==='incoming'?(ai.senderContact||''):(ai.receiverContact||'');
+            if(_cpRaw&&_cpRaw.trim()){
+                const sp=_cpRaw.trim();
+                const looksLikeCompany=/\b(ltd|limited|llc|inc|corp|company|co\.|gmbh|pte|plc|enterprises|group|holdings|commercial|industries|trading|garments|textile)\b/i.test(sp);
+                if(!looksLikeCompany)entry.remarks=(selectedType==='incoming'?'Sent by ':'Sent to ')+sp;
+            }
+        }
+
+        /* ── Progress helpers ── */
+        function showProgress(label,pct,badgeHtml){
+            const wrap=document.getElementById('pdfProgressWrap');
+            const lbl=document.getElementById('pdfProgressLabel');
+            const bar=document.getElementById('pdfProgressBar');
+            const badge=document.getElementById('pdfAiBadge');
+            if(wrap)wrap.classList.remove('hidden');
+            if(lbl)lbl.textContent=label;
+            if(bar)bar.style.width=pct+'%';
+            if(badge){if(badgeHtml){badge.innerHTML=badgeHtml;badge.classList.remove('hidden');}else badge.classList.add('hidden');}
+        }
+        function hideProgress(){
+            const wrap=document.getElementById('pdfProgressWrap');
+            if(wrap)wrap.classList.add('hidden');
+        }
+
+        /* ── Helper: read file as ArrayBuffer (supports older browsers) ── */
+        function fileToArrayBuffer(file){
+            if(file.arrayBuffer)return file.arrayBuffer();
+            return new Promise((resolve,reject)=>{
+                const reader=new FileReader();
+                reader.onload=e=>resolve(e.target.result);
+                reader.onerror=()=>reject(new Error('FileReader error'));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        /* ── Main PDF upload handler ── */
+        async function handleCourierPdfUpload(event){
+            const files=event.target.files;if(!files||files.length===0)return;
+            const selectedType=document.getElementById('courierTypeSelect').value;
+            const uploadBtn=document.getElementById('courierUploadBtn');
+            const noAiNotice=document.getElementById('noAiKeyNotice');
+            const hasAnyKey=getOpenRouterKeys().length>0;
+            if(noAiNotice)noAiNotice.classList.toggle('hidden',hasAnyKey);
+            let btnOrigHtml=null;
+            if(uploadBtn){btnOrigHtml=uploadBtn.innerHTML;uploadBtn.disabled=true;uploadBtn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';}
+            try{
+                for(let f=0;f<files.length;f++){
+                    const fileName=files[f].name;
+                    showProgress('Reading PDF…',5,'');
+                    try{
+                        // ── Load PDF with cMap support (fixes text extraction on many PDFs) ──
+                        let arrayBuffer;
+                        try{
+                            arrayBuffer=await fileToArrayBuffer(files[f]);
+                        }catch(readErr){
+                            throw new Error('Cannot read file: '+readErr.message);
+                        }
+
+                        let pdf;
+                        try{
+                            pdf=await pdfjsLib.getDocument({
+                                data:arrayBuffer,
+                                cMapUrl:PDFJS_CMAP_URL,
+                                cMapPacked:true,
+                                verbosity:0,
+                                disableRange:false,
+                                disableStream:false
+                            }).promise;
+                        }catch(pdfLoadErr){
+                            // If worker-based load fails, try without worker as fallback
+                            console.warn('PDF.js worker load failed, retrying without worker:',pdfLoadErr);
+                            try{
+                                const savedWorkerSrc=pdfjsLib.GlobalWorkerOptions.workerSrc;
+                                pdfjsLib.GlobalWorkerOptions.workerSrc='';
+                                pdf=await pdfjsLib.getDocument({data:new Uint8Array(arrayBuffer),verbosity:0}).promise;
+                                pdfjsLib.GlobalWorkerOptions.workerSrc=savedWorkerSrc;
+                            }catch(fallbackErr){
+                                throw new Error('PDF could not be loaded. It may be password-protected, corrupted, or in an unsupported format. ('+fallbackErr.message+')');
+                            }
+                        }
+
+                        // ── Render pages as images (up to 2 pages) ──
+                        let pageImages=[];
+                        const maxImgPages=Math.min(pdf.numPages,2);
+                        for(let pi=1;pi<=maxImgPages;pi++){
+                            showProgress(`Rendering page ${pi}/${maxImgPages}…`,10+pi*20,'');
+                            try{
+                                const pg=await pdf.getPage(pi);
+                                const baseVp=pg.getViewport({scale:1.0});
+                                const imgScale=Math.min(2.0,1600/Math.max(baseVp.width,baseVp.height,1));
+                                const vp=pg.getViewport({scale:imgScale});
+                                const cvs=document.createElement('canvas');
+                                cvs.width=Math.round(vp.width);cvs.height=Math.round(vp.height);
+                                const ctx2d=cvs.getContext('2d');
+                                if(!ctx2d)throw new Error('Canvas 2D context unavailable');
+                                await pg.render({canvasContext:ctx2d,viewport:vp}).promise;
+                                pageImages.push(cvs.toDataURL('image/jpeg',0.82));
+                            }catch(imgErr){
+                                console.warn('Page '+pi+' render failed:',imgErr.message);
+                                // Continue — text extraction still works
+                            }
+                        }
+
+                        // ── Extract text layer (used as supplement) ──
+                        showProgress('Extracting text…',60,'');
+                        let allItems=[];
+                        try{
+                            for(let i=1;i<=pdf.numPages;i++){
+                                const page=await pdf.getPage(i);
+                                const tc=await page.getTextContent({normalizeWhitespace:true,disableCombineTextItems:false});
+                                tc.items.forEach(item=>{if(item.str&&item.str.trim()!=='')allItems.push({page:i,x:item.transform[4],y:item.transform[5],text:item.str.trim()});});
+                            }
+                        }catch(textErr){
+                            console.warn('Text extraction failed:',textErr.message);
+                            // pageImages still available for AI
+                        }
+                        allItems.sort((a,b)=>{if(a.page!==b.page)return a.page-b.page;if(Math.abs(a.y-b.y)>3)return b.y-a.y;return a.x-b.x;});
+                        let lines=[],curLineItems=[],curY=null;
+                        allItems.forEach(item=>{if(curY===null||Math.abs(item.y-curY)>3){if(curLineItems.length>0)lines.push({y:curY,text:curLineItems.map(i=>i.text).join(' ')});curLineItems=[item];curY=item.y;}else{curLineItems.push(item);}});
+                        if(curLineItems.length>0)lines.push({y:curY,text:curLineItems.map(i=>i.text).join(' ')});
+                        let fullText=lines.map(l=>l.text).join('\n');
+
+                        let entry={type:selectedType,date:'',particulars:'',style:'',orgName:'',bearer:'',awbNo:'',remarks:'',_aiSource:'pattern'};
+
+                        // ── PRIMARY: AI extraction ──
+                        if(hasAnyKey){
+                            showProgress('OpenRouter AI reading…',70,'<span class="ai-badge-openrouter"><i class="fas fa-robot mr-1"></i>OpenRouter AI</span>');
+                            const ai=await aiExtractAllFields(fullText,selectedType,pageImages);
+                            if(ai){
+                                applyAiResult(ai,entry,selectedType);
+                                entry._aiSource=ai._source||'ai';
+                            }else{
+                                // AI failed — already showed error modal — use pattern fallback
+                                showProgress('Using pattern extraction…',85,'<span class="ai-badge-pattern"><i class="fas fa-code mr-1"></i>Pattern</span>');
+                                entry=patternExtractEntry(fullText,selectedType,entry);
+                                entry._aiSource='pattern';
+                            }
+                        }else{
+                            showProgress('Extracting with patterns…',70,'<span class="ai-badge-pattern"><i class="fas fa-code mr-1"></i>Pattern</span>');
+                            entry=patternExtractEntry(fullText,selectedType,entry);
+                            entry._aiSource='pattern';
+                        }
+
+                        showProgress('Done!',100,'');
+
+                        // ── Filename fallbacks ──
+                        if(!entry.date)entry.date=new Date().toISOString().slice(0,10);
+                        if(!entry.awbNo){
+                            const fnNums=(fileName.match(/\d{8,15}/g)||[]);
+                            if(fnNums.length)entry.awbNo=fnNums.reduce((a,b)=>a.length>=b.length?a:b,'');
+                        }
+                        if(!entry.bearer){
+                            const fn=fileName.toUpperCase();
+                            if(fn.includes('DHL'))entry.bearer='DHL';
+                            else if(fn.includes('FEDEX'))entry.bearer='FedEx';
+                            else if(fn.includes('UPS'))entry.bearer='UPS';
+                            else if(fn.includes('STEADFAST'))entry.bearer='Steadfast';
+                            else if(fn.includes('PATHAO'))entry.bearer='Pathao';
+                            else if(fn.includes('REDX'))entry.bearer='RedX';
+                            else if(fn.includes('PAPERFLY'))entry.bearer='Paperfly';
+                            else if(fn.includes('ECOURIER'))entry.bearer='eCourier';
+                            else if(fn.includes('MFT'))entry.bearer='MFT Courier';
+                            else if(fn.includes('AWB'))entry.bearer='DHL';
+                        }
+
+                        entry._id='courier_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);
+                        entry._fileName=fileName;
+                        pendingCourierEntries.push(entry);
+
+                    }catch(err){
+                        console.error('PDF Parse Error:',err);
+                        showPdfErrorModal(files[f].name, err.message||'Unknown error while processing PDF');
+                    }
+                }
+            }finally{
+                setTimeout(()=>hideProgress(),1500);
+                if(uploadBtn){uploadBtn.disabled=false;uploadBtn.innerHTML=btnOrigHtml;}
+                renderCourierPreview();
+                try{event.target.value='';}catch(e){}
+            }
+        }
+
+        function renderCourierPreview(){
+            const preview=document.getElementById('courierPreview'),list=document.getElementById('courierPreviewList'),count=document.getElementById('pendingCount');
+            if(pendingCourierEntries.length===0){preview.classList.add('hidden');return;}
+            preview.classList.remove('hidden');
+            count.textContent=pendingCourierEntries.length+' entr'+(pendingCourierEntries.length===1?'y':'ies');
+            const aiSrcLabel={openrouter:'<span class="ai-badge-openrouter"><i class="fas fa-robot mr-1"></i>OpenRouter AI</span>',pattern:'<span class="ai-badge-pattern"><i class="fas fa-code mr-1"></i>Pattern</span>'};
+            list.innerHTML=pendingCourierEntries.map((entry,idx)=>`
+            <div class="pending-card rounded-lg p-4 shadow-sm">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="bg-amber-300 text-amber-900 px-2.5 py-0.5 rounded text-xs font-black">#${idx+1}</span>
+                        <span class="text-xs text-gray-500 italic truncate max-w-[160px]"><i class="fas fa-file-pdf mr-1 text-red-400"></i>${escapeHtml(entry._fileName||'')}</span>
+                        <span class="${entry.type==='incoming'?'bg-teal-100 text-teal-800':'bg-blue-100 text-blue-800'} px-2 py-0.5 rounded text-xs font-semibold">${entry.type==='incoming'?'Incoming':'Outgoing'}</span>
+                        ${aiSrcLabel[entry._aiSource||'pattern']||'<span class="ai-badge-pattern">Pattern</span>'}
+                    </div>
+                    <button onclick="removePendingEntry(${idx})" class="text-red-400 hover:text-red-600 transition p-1"><i class="fas fa-trash-alt"></i></button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">Date</label><input type="text" value="${escapeHtml(entry.date)}" name="cr_dt_${idx}" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="field-input" onchange="pendingCourierEntries[${idx}].date=this.value"></div>
+                    <div class="sm:col-span-2 lg:col-span-2"><label class="block text-xs font-semibold text-gray-500 mb-1">Item / Particulars</label><input type="text" value="${escapeHtml(entry.particulars)}" name="cr_pt_${idx}" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="field-input font-medium" onchange="pendingCourierEntries[${idx}].particulars=this.value"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">Organisation</label><input type="text" value="${escapeHtml(entry.orgName)}" name="cr_or_${idx}" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="field-input" onchange="pendingCourierEntries[${idx}].orgName=this.value"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">Bearer/Carrier</label><input type="text" value="${escapeHtml(entry.bearer)}" name="cr_br_${idx}" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="field-input" onchange="pendingCourierEntries[${idx}].bearer=this.value"></div>
+                    <div><label class="block text-xs font-semibold text-gray-500 mb-1">AWB/Challan No.</label><input type="text" value="${escapeHtml(entry.awbNo)}" name="cr_aw_${idx}" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="field-input" onchange="pendingCourierEntries[${idx}].awbNo=this.value"></div>
+                    <div class="sm:col-span-2 lg:col-span-2"><label class="block text-xs font-semibold text-gray-500 mb-1">Remarks</label><input type="text" value="${escapeHtml(entry.remarks||'')}" name="cr_rm_${idx}" autocomplete="off" data-lpignore="true" data-1p-ignore readonly onfocus="this.removeAttribute('readonly')" class="field-input" onchange="pendingCourierEntries[${idx}].remarks=this.value"></div>
+                </div>
+            </div>`).join('');
+        }
+        function removePendingEntry(idx){pendingCourierEntries.splice(idx,1);renderCourierPreview()}
+        function discardCourierEntries(){if(pendingCourierEntries.length===0)return;document.getElementById('discardModal').style.display='flex'}
+        function closeDiscardModal(){document.getElementById('discardModal').style.display='none'}
+        function confirmDiscardCourierEntries(){pendingCourierEntries=[];closeDiscardModal();renderCourierPreview()}
+        function enrollCourierEntries(){let en=0,sk=0;pendingCourierEntries.forEach(e=>{delete e._fileName;delete e._aiSource;let dup=e.awbNo&&registers.some(m=>m.awbNo===e.awbNo&&m.awbNo!=='');if(!dup){e.deviceId=currentDeviceId;registers.push(e);addSuggestion('particulars',e.particulars);addSuggestion('styles',e.style);addSuggestion('orgNames',e.orgName);addSuggestion('bearers',e.bearer);addSuggestion('remarks',e.remarks);en++}else{sk++}});pendingCourierEntries=[];renderCourierPreview();commitAction();if(en>0)showToast(`Enrolled ${en}!${sk>0?' Skipped '+sk+' dupes.':''}`,'success');else showToast('All were duplicates.','error')}
+
+        // SUGGESTIONS MANAGER
+        let currentSuggestionTab='particulars';
+        function openSuggestionManager(){document.getElementById('suggestionsModal').style.display='flex';switchSuggestionTab('particulars')}
+        function closeSuggestionManager(){document.getElementById('suggestionsModal').style.display='none'}
+        function switchSuggestionTab(tab){currentSuggestionTab=tab;document.querySelectorAll('.tab-btn').forEach(btn=>{if(btn.dataset.tab===tab){btn.classList.add('border-brand','text-brand');btn.classList.remove('border-transparent','text-gray-500')}else{btn.classList.remove('border-brand','text-brand');btn.classList.add('border-transparent','text-gray-500')}});renderSuggestionList()}
+        function escAttr(s){return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+        function renderSuggestionList(){const lc=document.getElementById('suggestionsList');lc.innerHTML='';let merged={...baseSuggestions[currentSuggestionTab],...dynamicSuggestions[currentSuggestionTab]};Object.keys(merged).sort().forEach(key=>{const isHidden=merged[key]<=0;const div=document.createElement('div');if(isAdmin&&editingSuggestionKey===key){div.className='flex items-center gap-2 p-2 rounded border bg-blue-50 border-blue-300';div.innerHTML=`<input type="text" id="editSuggestionInput" value="${escAttr(key)}" class="flex-1 border border-gray-300 rounded p-1"><button onclick="saveEditSuggestion()" class="text-green-600 hover:text-green-800 px-2"><i class="fas fa-check"></i></button><button onclick="cancelEditSuggestion()" class="text-gray-500 hover:text-gray-700 px-2"><i class="fas fa-times"></i></button>`;lc.appendChild(div);return}div.className=`flex items-center justify-between p-2 rounded border ${isHidden?'bg-red-50 border-red-200 opacity-60':'bg-gray-50 border-gray-200'}`;const editBtnHtml=isAdmin?`<button onclick="editSuggestion('${key.replace(/'/g,"\\'")}')" class="text-blue-500 hover:text-blue-700 px-2"><i class="fas fa-edit"></i></button>`:'';div.innerHTML=`<span class="flex-1 mr-2 ${isHidden?'line-through text-gray-500':'text-gray-800'}">${key}</span>${editBtnHtml}<button onclick="deleteSuggestion('${key.replace(/'/g,"\\'")}')" class="text-red-500 hover:text-red-700 px-2"><i class="fas fa-trash"></i></button>`;lc.appendChild(div)});if(isAdmin&&editingSuggestionKey){const inp=document.getElementById('editSuggestionInput');if(inp){inp.focus();inp.select();inp.onkeydown=e=>{if(e.key==='Enter')saveEditSuggestion();else if(e.key==='Escape')cancelEditSuggestion()}}}}
+        function editSuggestion(key){if(!isAdmin)return;editingSuggestionKey=key;renderSuggestionList()}
+        function cancelEditSuggestion(){editingSuggestionKey=null;renderSuggestionList()}
+        function saveEditSuggestion(){if(!isAdmin||!editingSuggestionKey)return;const key=editingSuggestionKey;const inp=document.getElementById('editSuggestionInput');const trimmed=inp?inp.value.trim():'';if(!trimmed||trimmed===key){editingSuggestionKey=null;renderSuggestionList();return}if(!dynamicSuggestions[currentSuggestionTab])dynamicSuggestions[currentSuggestionTab]={};let merged={...baseSuggestions[currentSuggestionTab],...dynamicSuggestions[currentSuggestionTab]};if(merged[trimmed]!==undefined&&merged[trimmed]>0){alert("Exists!");return}if(baseSuggestions[currentSuggestionTab]&&baseSuggestions[currentSuggestionTab][key]!==undefined)dynamicSuggestions[currentSuggestionTab][key]=-100;else delete dynamicSuggestions[currentSuggestionTab][key];dynamicSuggestions[currentSuggestionTab][trimmed]=100;editingSuggestionKey=null;renderSuggestionList();saveData('suggestions',dynamicSuggestions)}
+        function addNewSuggestion(){const input=document.getElementById('newSuggestionInput');const val=input.value.trim();if(!val)return;if(!dynamicSuggestions[currentSuggestionTab])dynamicSuggestions[currentSuggestionTab]={};let merged={...baseSuggestions[currentSuggestionTab],...dynamicSuggestions[currentSuggestionTab]};if(merged[val]!==undefined&&merged[val]>0){alert("Exists!");return}dynamicSuggestions[currentSuggestionTab][val]=100;input.value='';renderSuggestionList();saveData('suggestions',dynamicSuggestions)}
+        function deleteSuggestion(key){if(!dynamicSuggestions[currentSuggestionTab])dynamicSuggestions[currentSuggestionTab]={};if(baseSuggestions[currentSuggestionTab]&&baseSuggestions[currentSuggestionTab][key])dynamicSuggestions[currentSuggestionTab][key]=-100;else delete dynamicSuggestions[currentSuggestionTab][key];renderSuggestionList();saveData('suggestions',dynamicSuggestions)}
+        function clearAllSuggestions(){if(confirm(`Delete ALL?`)){dynamicSuggestions[currentSuggestionTab]={};for(let key in baseSuggestions[currentSuggestionTab])dynamicSuggestions[currentSuggestionTab][key]=-100;renderSuggestionList();saveData('suggestions',dynamicSuggestions)}}
+
+        // CORE APP LOGIC
+        function init(){
+            initOpenRouterKeySync();
+            if(isFirebaseConnected){
+                db.ref('suggestions').once('value',snap=>{if(snap.val())dynamicSuggestions=desanitizeFirebaseKeys(snap.val());['particulars','styles','orgNames','bearers','remarks'].forEach(k=>{if(!dynamicSuggestions[k])dynamicSuggestions[k]={}})});
+                db.ref('registers').on('value',snap=>{const data=snap.val();if(data){let d=desanitizeFirebaseKeys(data);if(Array.isArray(d))registers=d;else if(typeof d==='object')registers=Object.values(d);else registers=[]}else registers=[];processAndRender()})
+            }else{
+                try{const s=sessionStorage.getItem('registers');if(s)registers=JSON.parse(s)}catch(e){}
+                try{const s2=sessionStorage.getItem('suggestions');if(s2)dynamicSuggestions=JSON.parse(s2)}catch(e){}
+                processAndRender()
+            }
+            datePickerInstance=flatpickr("#entryDate",{dateFormat:"Y-m-d",altInput:true,altFormat:"d/m/Y",allowInput:true,disableMobile:true});
+            datePickerInstance.setDate(new Date());
+            setupSuggestionInput('entryParticulars','particulars');setupSuggestionInput('entryStyle','styles');setupSuggestionInput('entryOrg','orgNames');setupSuggestionInput('entryBearer','bearers');setupSuggestionInput('entryRemarks','remarks');
+            document.getElementById('registerForm').addEventListener('submit',handleSubmit);
+            document.getElementById('monthFilter').addEventListener('change',renderTable);
+            document.getElementById('searchInput').addEventListener('keyup',renderTable);
+            toggleAdminUI(false);
+            ssoCheck(function(ok){if(ok){isAdmin=true;document.getElementById('adminBtn').innerHTML='<i class="fas fa-user-shield mr-2"></i>Logout';toggleAdminUI(true);}});
+            switchTab('incoming');
+            const shortId=currentDeviceId.slice(-8).toUpperCase();const dEl=document.getElementById('deviceIdShort');if(dEl)dEl.textContent=shortId;
+        }
+        function processAndRender(){registers.forEach(m=>{if(!m._id)m._id='gen_'+Date.now()+'_'+Math.random().toString(36).substr(2,9)});populateMonthFilter();renderTable()}
+        function populateMonthFilter(){const select=document.getElementById('monthFilter');const currentVal=select.value;const months=new Set();const now=new Date();const currentMonthKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');months.add(currentMonthKey);registers.forEach(m=>{if(m.date&&typeof m.date==='string'&&m.date.length>=7){const parts=m.date.split('-');if(parts.length>=2){const key=parts[0]+'-'+parts[1];if(parseInt(parts[0])>2000)months.add(key)}}});const sorted=Array.from(months).sort().reverse();select.innerHTML='<option value="all">All Months</option>';sorted.forEach(m=>{const opt=document.createElement('option');opt.value=m;opt.textContent=new Date(m+'-02').toLocaleDateString('en-US',{year:'numeric',month:'long'});select.appendChild(opt)});if(document.querySelector('select#monthFilter option[value="'+currentMonthKey+'"]'))select.value=currentMonthKey;else select.value='all'}
+        function switchTab(tab){currentTab=tab;document.getElementById('tabIncoming').className=`px-4 py-2 rounded font-bold text-sm transition w-full md:w-auto ${tab==='incoming'?'tab-active':'bg-gray-200 text-gray-700 hover:bg-gray-300'}`;document.getElementById('tabOutgoing').className=`px-4 py-2 rounded font-bold text-sm transition w-full md:w-auto ${tab==='outgoing'?'tab-active':'bg-gray-200 text-gray-700 hover:bg-gray-300'}`;renderTable()}
+        function renderTable(){const monthFilter=document.getElementById('monthFilter').value;const searchTerm=document.getElementById('searchInput').value.toLowerCase();const tbody=document.getElementById('tableBody');document.getElementById('thSelectAll').classList.toggle('hidden',!isAdmin);let filtered=registers.filter(m=>{if(m.type!==currentTab)return false;let matchMonth=true;if(monthFilter!=='all'&&m.date){const parts=m.date.split('-');if(parts.length>=2)matchMonth=(parts[0]+'-'+parts[1]===monthFilter);else matchMonth=false}else if(monthFilter!=='all'&&!m.date)matchMonth=false;let matchSearch=true;if(searchTerm)matchSearch=Object.values(m).some(val=>String(val).toLowerCase().includes(searchTerm));return matchMonth&&matchSearch});filtered.sort((a,b)=>(b.date||'').localeCompare(a.date||''));tbody.innerHTML='';const colCount=isAdmin?11:10;if(filtered.length===0){tbody.innerHTML=`<tr><td colspan="${colCount}" class="py-4 text-center text-gray-500">No entries found.</td></tr>`;return}filtered.forEach((m,index)=>{const tr=document.createElement('tr');const isEntryOwner=m.deviceId===currentDeviceId;const canEdit=isAdmin||isEntryOwner;const dateDisplay=m.date?new Date(m.date+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'}):'-';
+            const isEditing=m._id===editingId;
+            const rowColor=isEditing?'bg-green-50 ring-2 ring-inset ring-green-400':(index%2===0?'bg-white':'bg-gray-50');
+            tr.className=`border-b border-gray-200 ${rowColor} hover:bg-gray-100 transition`;
+            tr.setAttribute('data-entry-id',m._id);
+            let actionsHtml='';if(canEdit)actionsHtml+=`<button onclick="startEditMode('${m._id}')" class="text-blue-500 hover:text-blue-700 mr-2" title="Edit"><i class="fas fa-edit"></i></button>`;if(isAdmin||isEntryOwner)actionsHtml+=`<button onclick="deleteEntry('${m._id}', event)" class="text-red-500 hover:text-red-700" title="Delete"><i class="fas fa-trash"></i></button>`;let rowHtml=`<td class="py-3 px-4">${index+1}</td><td class="py-3 px-4 whitespace-nowrap">${dateDisplay}</td><td class="py-3 px-4 font-medium">${m.particulars||'-'}</td><td class="py-3 px-4">${m.style||'-'}</td><td class="py-3 px-4">${m.orgName||'-'}</td><td class="py-3 px-4">${m.bearer||'-'}</td><td class="py-3 px-4">${m.awbNo||'-'}</td><td class="py-3 px-4">${m.remarks||'-'}</td><td class="py-3 px-4">${actionsHtml}</td>`;if(isAdmin)rowHtml=`<td class="py-3 px-4"><input type="checkbox" class="row-check" data-id="${m._id}"></td>`+rowHtml;tr.innerHTML=rowHtml;tbody.appendChild(tr)})}
+
+        function handleSubmit(e){
+            e.preventDefault();
+            if(editingId){saveInlineEdit(editingId);return;}
+            const date=document.getElementById('entryDate').value;const type=document.getElementById('entryType').value;const particulars=document.getElementById('entryParticulars').value,style=document.getElementById('entryStyle').value,orgName=document.getElementById('entryOrg').value,bearer=document.getElementById('entryBearer').value,awbNo=document.getElementById('entryAwb').value,remarks=document.getElementById('entryRemarks').value;if(!date||!particulars){alert("Please fill in Date and Particulars.");return}const entry={type,date,particulars,style,orgName,bearer,awbNo,remarks,deviceId:currentDeviceId};entry._id='entry_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);registers.push(entry);addSuggestion('particulars',particulars);addSuggestion('styles',style);addSuggestion('orgNames',orgName);addSuggestion('bearers',bearer);addSuggestion('remarks',remarks);
+            commitAction();document.getElementById('registerForm').reset();datePickerInstance.setDate(new Date());showToast('Entry saved!','success')}
+
+        function startEditMode(id){
+            const entry=registers.find(m=>m._id===id);if(!entry)return;
+            const isEntryOwner=entry.deviceId===currentDeviceId;
+            if(!isAdmin&&!isEntryOwner){showToast('You can only edit your own entries.','error');return;}
+            editingId=id;
+            document.getElementById('entryType').value=entry.type||'incoming';
+            if(datePickerInstance)datePickerInstance.setDate(entry.date?new Date(entry.date+'T00:00:00'):new Date());
+            document.getElementById('entryParticulars').value=entry.particulars||'';
+            document.getElementById('entryStyle').value=entry.style||'';
+            document.getElementById('entryOrg').value=entry.orgName||'';
+            document.getElementById('entryBearer').value=entry.bearer||'';
+            document.getElementById('entryAwb').value=entry.awbNo||'';
+            document.getElementById('entryRemarks').value=entry.remarks||'';
+            document.getElementById('formHeading').innerHTML='<i class="fas fa-edit mr-2 text-green-600"></i>Editing Entry';
+            const submitBtn=document.getElementById('formSubmitBtn');
+            submitBtn.textContent='Update';submitBtn.classList.remove('bg-brand','hover:bg-brand-dark');submitBtn.classList.add('bg-green-600','hover:bg-green-700');
+            document.getElementById('formCancelBtn').classList.remove('hidden');document.getElementById('formClearBtn').classList.add('hidden');
+            editScrollTargetId=id;
+            document.getElementById('formSection').scrollIntoView({behavior:'smooth',block:'start'});renderTable();}
+        function cancelEditMode(){
+            editingId=null;document.getElementById('registerForm').reset();datePickerInstance.setDate(new Date());
+            document.getElementById('formHeading').textContent='New Product Entry';
+            const submitBtn=document.getElementById('formSubmitBtn');
+            submitBtn.textContent='Submit';submitBtn.classList.add('bg-brand','hover:bg-brand-dark');submitBtn.classList.remove('bg-green-600','hover:bg-green-700');
+            document.getElementById('formCancelBtn').classList.add('hidden');document.getElementById('formClearBtn').classList.remove('hidden');
+            renderTable();
+            if(editScrollTargetId){const _tid=editScrollTargetId;editScrollTargetId=null;setTimeout(()=>{const row=document.querySelector(`tr[data-entry-id='${_tid}']`);if(row){row.scrollIntoView({behavior:'smooth',block:'nearest'});setTimeout(()=>{row.classList.add('row-flash');setTimeout(()=>row.classList.remove('row-flash'),10000);},400);}},80);}}
+        function saveInlineEdit(id){
+            const idx=registers.findIndex(m=>m._id===id);if(idx===-1)return;
+            const entry=registers[idx];const isEntryOwner=entry.deviceId===currentDeviceId;
+            if(!isAdmin&&!isEntryOwner){showToast('You can only edit your own entries.','error');cancelEditMode();return;}
+            const date=document.getElementById('entryDate').value;const type=document.getElementById('entryType').value;const particulars=document.getElementById('entryParticulars').value;const style=document.getElementById('entryStyle').value;const orgName=document.getElementById('entryOrg').value;const bearer=document.getElementById('entryBearer').value;const awbNo=document.getElementById('entryAwb').value;const remarks=document.getElementById('entryRemarks').value;
+            if(!date||!particulars){alert("Please fill in Date and Particulars.");return;}
+            entry.type=type;entry.date=date;entry.particulars=particulars;entry.style=style;entry.orgName=orgName;entry.bearer=bearer;entry.awbNo=awbNo;entry.remarks=remarks;
+            addSuggestion('particulars',particulars);addSuggestion('styles',style);addSuggestion('orgNames',orgName);addSuggestion('bearers',bearer);addSuggestion('remarks',remarks);
+            const _scrollId=editingId;editScrollTargetId=null;cancelEditMode();commitAction();showToast('Entry updated!','success');
+            setTimeout(()=>{const row=document.querySelector(`tr[data-entry-id='${_scrollId}']`);if(row){row.scrollIntoView({behavior:'smooth',block:'nearest'});setTimeout(()=>{row.classList.add('row-flash');setTimeout(()=>row.classList.remove('row-flash'),10000);},400);}},200);}
+        function deleteEntry(id,event){const idx=registers.findIndex(m=>m._id===id);if(idx===-1)return;const isEntryOwner=registers[idx].deviceId===currentDeviceId;if(!isAdmin&&!isEntryOwner){showToast('You can only delete your own entries.','error');return}deleteTargetId=id;isBulkDelete=false;document.getElementById('deleteMessage').textContent="Are you sure you want to delete this entry?";positionDeleteBox(event)}
+        function promptBulkDelete(e){if(!isAdmin)return;const checked=document.querySelectorAll('.row-check:checked');if(checked.length===0){alert("Select entries to delete.");return}isBulkDelete=true;deleteTargetId=null;document.getElementById('deleteMessage').textContent=`Delete ${checked.length} entries?`;positionDeleteBox(e)}
+        function positionDeleteBox(event){const box=document.getElementById('deleteBox'),modal=document.getElementById('deleteModal');modal.style.display='flex';let x=event.clientX,y=event.clientY;if(x+340>window.innerWidth)x=window.innerWidth-340;else x=x+15;if(y+220>window.innerHeight)y=window.innerHeight-220;else y=y+15;box.style.left=x+'px';box.style.top=y+'px'}
+        function confirmDelete(){if(isBulkDelete){const checked=document.querySelectorAll('.row-check:checked');const idsToDelete=Array.from(checked).map(cb=>cb.dataset.id);registers=registers.filter(m=>!idsToDelete.includes(m._id))}else if(deleteTargetId){registers=registers.filter(m=>m._id!==deleteTargetId)}closeDeleteModal();commitAction()}
+        function closeDeleteModal(){document.getElementById('deleteModal').style.display='none';deleteTargetId=null}
+        function toggleSelectAll(cb){document.querySelectorAll('.row-check').forEach(c=>c.checked=cb.checked)}
+        function checkAdmin(){if(isAdmin){isAdmin=false;ssoLogout();document.getElementById('adminBtn').innerHTML='<i class="fas fa-user-lock mr-2"></i>Admin';toggleAdminUI(false)}else{document.getElementById('adminModal').style.display='flex';document.getElementById('adminPassInput').value='';document.getElementById('adminError').classList.add('hidden');setTimeout(()=>document.getElementById('adminPassInput').focus(),100)}}
+        function closeAdminModal(){document.getElementById('adminModal').style.display='none'}
+        function submitAdminLogin(){const pass=document.getElementById('adminPassInput').value;if(pass===SUPER_USER_PASSWORD){isAdmin=true;ssoLogin();document.getElementById('adminBtn').innerHTML='<i class="fas fa-user-shield mr-2"></i>Logout';toggleAdminUI(true);closeAdminModal()}else{document.getElementById('adminError').classList.remove('hidden')}}
+        function toggleAdminUI(show){const display=show?'inline-block':'none';document.getElementById('pasteImportBtn').style.display=display;document.getElementById('downloadPdfBtn').style.display=display;document.getElementById('deleteSelectedBtn').style.display=display;document.getElementById('manageSuggestionsBtn').style.display=display;document.getElementById('nameAddressBtn').style.display=display;document.getElementById('serverAiWrap').style.display=show?'block':'none';renderTable()}
+        function generatePDF(){const{jsPDF}=window.jspdf;const doc=new jsPDF('l','mm','a4');let titleMonthYear="All Months";const monthFilterVal=document.getElementById('monthFilter').value;if(monthFilterVal!=='all'){const d=new Date(monthFilterVal+'-02');if(!isNaN(d.getTime()))titleMonthYear=d.toLocaleDateString('en-US',{year:'numeric',month:'long'})}doc.setFontSize(14);doc.setFont(undefined,'bold');var _cn=(typeof window._getCompanyName==='function')?window._getCompanyName():'YIK YUE (H.K.) COMMERCIAL LIMITED';var _ca=(typeof window._getCompanyAddress==='function')?window._getCompanyAddress():'2/F, Plaza 33, Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh';doc.text(_cn,148.5,15,{align:'center'});doc.setFontSize(10);doc.setFont(undefined,'normal');doc.text(_ca,148.5,21,{align:'center'});doc.setFontSize(12);doc.setFont(undefined,'bold');doc.text(`Product Register Sheet- ${titleMonthYear}`,148.5,28,{align:'center'});let yCursor=34;let flInc=registers.filter(m=>m.type==='incoming');if(monthFilterVal!=='all')flInc=flInc.filter(m=>m.date&&m.date.startsWith(monthFilterVal));flInc.sort((a,b)=>(a.date||'').localeCompare(b.date||''));doc.setFontSize(11);doc.setFont(undefined,'bold');doc.text('Incoming Register Sheet',14,yCursor);yCursor+=2;doc.autoTable({head:[['Date','Particulars','Style/Type','Name of the Organisation','Bearer/Carrier','Challan/AWB No.','Remarks']],body:flInc.map(m=>[m.date?new Date(m.date+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'}):'-',m.particulars||'-',m.style||'-',m.orgName||'-',m.bearer||'-',m.awbNo||'-',m.remarks||'-']),startY:yCursor,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[10,64,56],textColor:255,fontStyle:'bold'},columnStyles:{0:{cellWidth:20},1:{cellWidth:60},2:{cellWidth:20},3:{cellWidth:45},4:{cellWidth:30},5:{cellWidth:35},6:{cellWidth:40}}});yCursor=doc.lastAutoTable.finalY+10;if(yCursor>180){doc.addPage();yCursor=20}let flOut=registers.filter(m=>m.type==='outgoing');if(monthFilterVal!=='all')flOut=flOut.filter(m=>m.date&&m.date.startsWith(monthFilterVal));flOut.sort((a,b)=>(a.date||'').localeCompare(b.date||''));doc.setFontSize(11);doc.setFont(undefined,'bold');doc.text('Outgoing Register Sheet',14,yCursor);yCursor+=2;doc.autoTable({head:[['Date','Particulars','Style/Type','Name of the Organisation','Bearer/Carrier','Challan/AWB No.','Remarks']],body:flOut.map(m=>[m.date?new Date(m.date+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'}):'-',m.particulars||'-',m.style||'-',m.orgName||'-',m.bearer||'-',m.awbNo||'-',m.remarks||'-']),startY:yCursor,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[10,64,56],textColor:255,fontStyle:'bold'},columnStyles:{0:{cellWidth:20},1:{cellWidth:60},2:{cellWidth:20},3:{cellWidth:45},4:{cellWidth:30},5:{cellWidth:35},6:{cellWidth:40}}});doc.save(`Product_Register_${titleMonthYear.replace(/\s+/g,'_')}.pdf`)}
+
+        window.onload=init;
+    </script>
+
+<script>
+/* ─── YIK YUE Shared SSO (Firebase-based) ─ */
+(function(){
+var _SC={apiKey:"AIzaSyCbe-CBozEbwUMwxyxb8WVcBqXSBeSRHFw",databaseURL:"https://payment-voucher-6aa57-default-rtdb.asia-southeast1.firebasedatabase.app"};
+var _SM=12*3600*1000;
+function _fp(){try{var c=document.createElement('canvas');c.width=160;c.height=30;var x=c.getContext('2d');x.fillStyle='#4af';x.fillRect(0,0,160,30);x.fillStyle='#fff';x.font='bold 13px Arial';x.fillText('yyk-sso',4,21);return c.toDataURL().slice(-60);}catch(e){return'nc';}}
+function _h32(s){var h=2166136261>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return h.toString(16);}
+var _DID=currentDeviceId;
+var _db=null;
+function _gdb(){if(_db)return _db;try{var a=firebase.app('yyk-sso');_db=firebase.database(a);return _db;}catch(e){}try{var a=firebase.initializeApp(_SC,'yyk-sso');_db=firebase.database(a);return _db;}catch(e2){}return null;}
+window.ssoLogin=function(){var _did=currentDeviceId;var d=_gdb();if(d)d.ref('adminSessions/'+_did).set({ts:Date.now(),did:_did});try{localStorage.setItem('yyAdminSession',JSON.stringify({did:_did,ts:Date.now()}));}catch(e){}};
+window.ssoLogout=function(){var d=_gdb();if(d)d.ref('adminSessions/'+currentDeviceId).remove();try{localStorage.removeItem('yyAdminSession');}catch(e){}};
+window.ssoCheck=function(cb){try{var _ls=localStorage.getItem('yyAdminSession');if(_ls){var _lo=JSON.parse(_ls);if(_lo&&_lo.did===currentDeviceId&&_lo.ts&&(Date.now()-_lo.ts)<_SM){cb(true);return;}}}catch(e){}var d=_gdb();if(!d){cb(false);return;}d.ref('adminSessions/'+currentDeviceId).once('value',function(s){var v=s.val();if(v&&v.ts&&(Date.now()-v.ts)<_SM&&(!v.did||v.did===currentDeviceId)){try{localStorage.setItem('yyAdminSession',JSON.stringify({did:currentDeviceId,ts:Date.now()}));}catch(e){}cb(true);}else{if(v)d.ref('adminSessions/'+currentDeviceId).remove();try{localStorage.removeItem('yyAdminSession');}catch(e){}cb(false);}});};
+})();
+</script>
+
+<script>
+/* ===== YIK YUE – Name & Address + Server Settings ===== */
+(function(){
+    function _yyToast(msg, type){if(typeof showToast==='function')showToast(msg,type);else if(typeof toast==='function')toast(msg,type);else alert(msg);}
+    var DEFAULT_COMPANY_NAME='YIK YUE (H.K.) COMMERCIAL LIMITED';
+    var DEFAULT_COMPANY_ADDRESS='2/F, Plaza 33, Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh';
+    var companyName=DEFAULT_COMPANY_NAME,companyAddress=DEFAULT_COMPANY_ADDRESS,prevCompanyName='',prevCompanyAddress='';
+    try{var _cn=localStorage.getItem('companyName_yy');if(_cn)companyName=_cn;var _ca=localStorage.getItem('companyAddress_yy');if(_ca)companyAddress=_ca;var _pn=sessionStorage.getItem('prevCompanyName_yy');if(_pn)prevCompanyName=_pn;var _pa=sessionStorage.getItem('prevCompanyAddress_yy');if(_pa)prevCompanyAddress=_pa;}catch(e){}
+    function updateHeaderDisplay(){var hn=document.getElementById('headerCompanyName');var ha=document.getElementById('headerCompanyAddress');if(hn)hn.textContent=companyName;if(ha)ha.textContent=companyAddress;}
+    window._getCompanyName=function(){return companyName;};window._getCompanyAddress=function(){return companyAddress;};
+    window.openNameAddressModal=function(){
+        document.getElementById('naNameInput').value=companyName;document.getElementById('naAddressInput').value=companyAddress;
+        var pi=document.getElementById('naPrevInfo'),rb=document.getElementById('naRestoreBtn');var hasPrev=!!(prevCompanyName||prevCompanyAddress);
+        if(hasPrev){document.getElementById('naPrevName').textContent='Name: '+(prevCompanyName||'—');document.getElementById('naPrevAddr').textContent='Addr: '+(prevCompanyAddress||'—');pi.classList.remove('hidden');}else{pi.classList.add('hidden');}
+        rb.disabled=!hasPrev;document.getElementById('nameAddressModal').classList.remove('hidden');document.body.style.overflow='hidden';setTimeout(function(){document.getElementById('naNameInput').focus();},100);};
+    window.closeNameAddressModal=function(){document.getElementById('nameAddressModal').classList.add('hidden');document.body.style.overflow='';};
+    window.saveNameAddress=function(){var nn=document.getElementById('naNameInput').value.trim();var na=document.getElementById('naAddressInput').value.trim();if(!nn){_yyToast('Company name cannot be empty','error');return;}prevCompanyName=companyName;prevCompanyAddress=companyAddress;companyName=nn;companyAddress=na;try{localStorage.setItem('companyName_yy',companyName);localStorage.setItem('companyAddress_yy',companyAddress);sessionStorage.setItem('prevCompanyName_yy',prevCompanyName);sessionStorage.setItem('prevCompanyAddress_yy',prevCompanyAddress);}catch(e){}updateHeaderDisplay();closeNameAddressModal();_yyToast('Name & Address updated!','success');};
+    window.restoreNameAddress=function(){if(!prevCompanyName&&!prevCompanyAddress){_yyToast('No previous version to restore','error');return;}companyName=prevCompanyName;companyAddress=prevCompanyAddress;prevCompanyName='';prevCompanyAddress='';try{localStorage.setItem('companyName_yy',companyName);localStorage.setItem('companyAddress_yy',companyAddress);sessionStorage.removeItem('prevCompanyName_yy');sessionStorage.removeItem('prevCompanyAddress_yy');}catch(e){}updateHeaderDisplay();closeNameAddressModal();_yyToast('Restored to previous version!','success');};
+    function cfgToJsString(cfg){if(!cfg||typeof cfg!=='object')return'{}';var keys=Object.keys(cfg);var lines=['const firebaseConfig = {'];keys.forEach(function(k,i){lines.push('  '+k+': "'+cfg[k]+'"'+(i<keys.length-1?',':''));});lines.push('};');return lines.join('\n');}
+    window.openServerModal=function(){document.getElementById('srv_configJson').value=cfgToJsString(firebaseConfig);var hasPrev=!!sessionStorage.getItem('prevServerConfig_yy');document.getElementById('srvPrevInfo').classList.toggle('hidden',!hasPrev);document.getElementById('srvRestoreBtn').disabled=!hasPrev;document.getElementById('serverModal').classList.remove('hidden');document.body.style.overflow='hidden';};
+    window.closeServerModal=function(){document.getElementById('serverModal').classList.add('hidden');document.body.style.overflow='';};
+    function parseServerConfigInput(raw){var s=raw.trim().replace(/^\s*(?:const|var|let)\s+\w+\s*=\s*/,'').replace(/;\s*$/,'').trim();s=s.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g,'$1"$2":');return JSON.parse(s);}
+    window.saveServerConfig=function(){var raw=document.getElementById('srv_configJson').value.trim();var newCfg;try{newCfg=parseServerConfigInput(raw);}catch(e){_yyToast('Invalid config — check the format','error');return;}if(typeof newCfg!=='object'||Array.isArray(newCfg)){_yyToast('Config must be an object','error');return;}if(!newCfg.apiKey||!newCfg.databaseURL){_yyToast('apiKey and databaseURL are required','error');return;}var cur=localStorage.getItem('serverConfig_yy');sessionStorage.setItem('prevServerConfig_yy',cur||JSON.stringify(DEFAULT_SERVER_CONFIG));localStorage.setItem('serverConfig_yy',JSON.stringify(newCfg));closeServerModal();_yyToast('Server config saved! Reloading...','success');setTimeout(function(){window.location.reload();},1200);};
+    window.restoreServerConfig=function(){var prev=sessionStorage.getItem('prevServerConfig_yy');if(!prev){_yyToast('No previous config to restore','error');return;}localStorage.setItem('serverConfig_yy',prev);sessionStorage.removeItem('prevServerConfig_yy');closeServerModal();_yyToast('Previous config restored! Reloading...','success');setTimeout(function(){window.location.reload();},1200);};
+    document.addEventListener('DOMContentLoaded',function(){updateHeaderDisplay();});
+})();
+</script>
+
+<!-- ===== Name & Address Modal ===== -->
+<div id="nameAddressModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[9999] flex justify-center items-center p-4" onclick="if(event.target===this)closeNameAddressModal()">
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg" onclick="event.stopPropagation()">
+        <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+            <h3 class="text-lg font-bold"><i class="fas fa-building mr-2"></i>Name &amp; Address</h3>
+            <button onclick="closeNameAddressModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6">
+            <div class="mb-4"><label class="block text-sm font-semibold text-gray-700 mb-1">Company Name</label><input type="text" id="naNameInput" class="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Company Name"></div>
+            <div class="mb-6"><label class="block text-sm font-semibold text-gray-700 mb-1">Address</label><textarea id="naAddressInput" rows="3" class="w-full border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" placeholder="Full Address"></textarea></div>
+            <div id="naPrevInfo" class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 hidden"><p class="font-semibold text-gray-600 mb-1"><i class="fas fa-history mr-1"></i>Previous Version:</p><p id="naPrevName" class="truncate"></p><p id="naPrevAddr" class="truncate"></p></div>
+            <div class="flex justify-between items-center gap-2 flex-wrap"><button id="naRestoreBtn" onclick="restoreNameAddress()" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium text-sm"><i class="fas fa-undo mr-1"></i>Restore Previous</button><div class="flex gap-2 ml-auto"><button onclick="closeNameAddressModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button><button onclick="saveNameAddress()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm"><i class="fas fa-save mr-1"></i>Save</button></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Server Settings Modal ===== -->
+<div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[9999] flex justify-center items-center p-4" onclick="if(event.target===this)closeServerModal()">
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-xl" onclick="event.stopPropagation()">
+        <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+            <h3 class="text-lg font-bold"><i class="fas fa-server mr-2"></i>Server Settings</h3>
+            <button onclick="closeServerModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6">
+            <p class="text-sm text-gray-600 mb-3">Paste your Firebase config object below. Changes take effect after reload.</p>
+            <textarea id="srv_configJson" rows="10" class="w-full border border-gray-300 rounded p-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-brand resize-none" placeholder="const firebaseConfig = { ... };"></textarea>
+            <div id="srvPrevInfo" class="mt-3 p-2 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 hidden"><p><i class="fas fa-history mr-1"></i>A previous config exists and can be restored.</p></div>
+            <div class="flex justify-between items-center gap-2 flex-wrap mt-4"><button id="srvRestoreBtn" onclick="restoreServerConfig()" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium text-sm"><i class="fas fa-undo mr-1"></i>Restore Previous</button><div class="flex gap-2 ml-auto"><button onclick="closeServerModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button><button onclick="saveServerConfig()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm"><i class="fas fa-save mr-1"></i>Save &amp; Reload</button></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== AI Settings Modal (OpenRouter — multiple keys) ===== -->
+<div id="aiSettingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[9999] flex justify-center items-center p-4" onclick="if(event.target===this)closeAiSettingsModal()">
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg" onclick="event.stopPropagation()">
+        <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+            <h3 class="text-lg font-bold"><i class="fas fa-key mr-2"></i>API Keys</h3>
+            <button onclick="closeAiSettingsModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-sm text-gray-600">The AI <strong>reads each courier PDF as an image</strong> and automatically fills in all fields. Add up to <strong>5 OpenRouter keys</strong> — if one fails or hits a rate limit, the next is tried automatically.</p>
+
+            <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs text-purple-800">
+                <i class="fas fa-info-circle mr-1 text-purple-500"></i>
+                Get free API keys at <a href="https://openrouter.ai/keys" target="_blank" class="underline font-semibold hover:text-purple-900">openrouter.ai/keys</a>. Many models have a free tier. Keys are tried in order — Key 1 first, then Key 2 as fallback, and so on.
+            </div>
+
+            <!-- Dynamic key inputs (rendered by JS) -->
+            <div id="orKeysContainer" class="space-y-3"></div>
+
+            <p class="text-xs text-gray-400"><i class="fas fa-shield-alt mr-1"></i>Keys are saved to your Firebase database and synced across all devices. Without any key, PDF uploads use pattern-based extraction (less accurate for scanned PDFs).</p>
+
+            <div class="flex justify-end gap-2 pt-1">
+                <button onclick="closeAiSettingsModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button>
+                <button onclick="saveAiSettings()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm"><i class="fas fa-save mr-1"></i>Save Keys</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
