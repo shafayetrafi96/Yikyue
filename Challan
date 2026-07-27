@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YIK YUE (H.K.) COMMERCIAL LIMITED - Challan System</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='18' y='3' width='64' height='94' rx='6' fill='%230A4038'/%3E%3Crect x='24' y='9' width='52' height='82' rx='3' fill='white'/%3E%3Cline x1='32' y1='30' x2='68' y2='30' stroke='%230A4038' stroke-width='3'/%3E%3Cline x1='32' y1='44' x2='68' y2='44' stroke='%230A4038' stroke-width='3'/%3E%3Cline x1='32' y1='58' x2='54' y2='58' stroke='%230A4038' stroke-width='3'/%3E%3C/svg%3E">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>tailwind.config={theme:{extend:{colors:{brand:'#0A4038','brand-dark':'#072e27','brand-light':'#e0efed'}}}}</script>
+    <style>
+        body{background-color:#f4f6f9;background-image:url('https://www.transparenttextures.com/patterns/cubes.png');background-attachment:fixed}
+        ::selection{background-color:#0A4038;color:white}
+        .suggestion-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #cbd5e0;border-top:none;max-height:150px;overflow-y:auto;z-index:50;box-shadow:0 4px 6px -1px rgba(0,0,0,.1);border-radius:0 0 .25rem .25rem}
+        .suggestion-item{padding:8px 12px;cursor:pointer;font-size:.875rem;color:#4a5568}
+        .suggestion-item:hover,.suggestion-item:active{background-color:#e0efed;color:#0A4038}
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);padding:14px 28px;border-radius:12px;color:#fff;font-weight:600;font-size:14px;z-index:9999;opacity:0;transition:opacity .3s;box-shadow:0 8px 30px rgba(0,0,0,.2);pointer-events:none}
+        .toast.show{opacity:1}
+        .toast-success{background:#059669}
+        .toast-error{background:#dc2626}
+        input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus,input:-webkit-autofill:active{-webkit-box-shadow:0 0 0 30px #fff inset!important;-webkit-text-fill-color:#2d3748!important;transition:background-color 5000s ease-in-out 0s}
+
+        /* CHALLAN DOCUMENT STYLES */
+        .challan-doc{font-family:'Calibri',sans-serif;color:#000;width:210mm;margin:0 auto;padding:5mm 10mm;line-height:1.3;position:relative;background-color:#fff;zoom:.56}
+        .challan-header{margin-bottom:3mm}
+        .challan-header .company-name{text-align:left;font-size:14px;font-weight:bold;letter-spacing:1px;margin:0}
+        .challan-header .company-sub{text-align:left;font-size:8.5px;font-weight:600;margin:2px 0 0;color:#333}
+        .challan-header .company-addr{text-align:left;font-size:8px;color:#444;margin:1px 0 0}
+        .challan-header .header-line{border:none;border-top:2px solid #000;margin:4px 0 0}
+        .challan-ruler{border:1px solid #555;padding:5mm 7mm;background-color:#fff;background-size:92% auto;background-position:center;background-repeat:no-repeat;min-height:calc(297mm - 22mm);display:flex;flex-direction:column}
+        .challan-ruler .challan-body{flex:0 1 auto}
+        .challan-ruler .signature-section{margin-top:auto;padding-top:8px}
+        .challan-ruler .title-section{text-align:center;margin:8px 0 30px}
+        .challan-ruler .title-text{font-size:13px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;display:inline-block;padding:2px 16px;border-top:1.5px solid #000;border-bottom:1.5px solid #000}
+        .challan-ruler .info-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:20px;font-weight:bold}
+        .challan-ruler .to-section{margin-bottom:40px;font-size:10px}
+        .challan-ruler .to-label{font-weight:bold;margin-bottom:2px;font-size:10px}
+        .challan-ruler .to-name{font-weight:bold;font-size:11px}
+        .challan-ruler .to-org{font-size:10px}
+        .challan-ruler .to-mobile{font-size:8.5px;color:#555}
+        .challan-ruler table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:20px}
+        .challan-ruler table thead th{background:transparent;color:#000;padding:4px 5px;text-align:center;font-weight:bold;font-size:9px;border:1px solid #000}
+        .challan-ruler table thead th:nth-child(2),.challan-ruler table thead th:nth-child(3),.challan-ruler table thead th:nth-child(4),.challan-ruler table thead th:nth-child(5){text-align:left}
+        .challan-ruler table tbody td{padding:3px 5px;border:1px solid #000;font-size:9.5px}
+        .challan-ruler table tbody td:first-child{text-align:center}
+        .challan-ruler table tbody td:nth-child(6){text-align:center}
+        .challan-ruler table tfoot td{padding:4px 5px;border:none;font-weight:bold;font-size:9.5px;background:transparent}
+        .challan-ruler table tfoot .total-label{text-align:right;border:none}
+        .challan-ruler table tfoot .total-value{text-align:center;border:1px solid #000}
+        .challan-ruler .signature-section{display:flex;justify-content:space-between;font-size:9.5px}
+        .challan-ruler .signature-box{text-align:center;min-width:130px}
+        .challan-ruler .signature-line{border-top:1px solid #000;padding-top:3px;font-weight:bold;font-size:9.5px}
+
+        /* ===== Word-like Editing Toolbar ===== */
+        input[type=range]{accent-color:#0A4038}
+        .word-toolbar{background:#f0f4f8;border:1px solid #cbd5e0;border-radius:6px;padding:6px 10px;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+        .word-toolbar-btn{border:1px solid #cbd5e0;background:#fff;border-radius:4px;padding:3px 8px;font-size:12px;cursor:pointer;color:#374151;transition:all .15s;display:inline-flex;align-items:center;gap:3px;}
+        .word-toolbar-btn:hover{background:#e0efed;border-color:#0A4038;color:#0A4038;}
+        .word-toolbar-btn.active{background:#0A4038;color:#fff;border-color:#0A4038;}
+        .word-toolbar-sep{width:1px;height:20px;background:#cbd5e0;margin:0 2px;}
+        .rte-editable{outline:none;cursor:text;}
+        .rte-editable:focus-within{outline:2px solid rgba(10,64,56,0.15);border-radius:2px;}
+        kbd{font-family:monospace;font-size:10px;background:#e5e7eb;border:1px solid #d1d5db;border-radius:3px;padding:1px 5px;}
+        button:disabled{opacity:.4;cursor:not-allowed}
+
+        @keyframes rowFlash {
+            0%   { background-color: #fef08a; }
+            100% { background-color: transparent; }
+        }
+        .row-flash { animation: rowFlash 10s ease-out; }
+    </style>
+</head>
+<body class="text-gray-800 font-sans">
+    <div id="toastContainer" class="toast"></div>
+    <input type="file" id="bgUploadInput" accept="image/*" class="hidden" onchange="handleBgUpload(event)">
+
+    <!-- ===== Admin Login Modal ===== -->
+    <div id="adminModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-80 z-[101]">
+            <h3 class="text-lg font-bold mb-4 text-brand-dark">Admin Login</h3>
+            <input type="password" id="adminPassInput" autocomplete="off" class="w-full border border-gray-300 rounded p-2 mb-2" placeholder="Enter Password" onkeypress="if(event.key==='Enter')submitAdminLogin()">
+            <p id="adminError" class="text-red-500 text-sm mb-4 hidden">Incorrect Password!</p>
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeAdminModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium">Cancel</button>
+                <button onclick="submitAdminLogin()" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark font-medium">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Delete Confirm Modal ===== -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center" onclick="closeDeleteModal()">
+        <div class="bg-white p-6 rounded-lg shadow-2xl w-80 border border-red-200 z-[101]" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold mb-4 text-red-600">Confirm Deletion</h3>
+            <p id="deleteMessage" class="mb-6">Are you sure?</p>
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium">Cancel</button>
+                <button onclick="confirmDelete()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Suggestions Modal ===== -->
+    <div id="suggestionsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col z-[101]">
+            <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg shrink-0">
+                <h3 class="text-lg font-bold"><i class="fas fa-list-alt mr-2"></i>Manage Suggestions</h3>
+                <button onclick="closeSuggestionManager()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex border-b bg-gray-50 px-4 pt-2 overflow-x-auto shrink-0">
+                <button onclick="switchSuggestionTab('attentionPersons')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-brand text-brand" data-tab="attentionPersons">Attention</button>
+                <button onclick="switchSuggestionTab('organizations')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="organizations">Organizations</button>
+                <button onclick="switchSuggestionTab('mobiles')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="mobiles">Mobiles</button>
+                <button onclick="switchSuggestionTab('items')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="items">Items</button>
+                <button onclick="switchSuggestionTab('styles')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="styles">Styles</button>
+                <button onclick="switchSuggestionTab('sampleTypes')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="sampleTypes">Sample Types</button>
+                <button onclick="switchSuggestionTab('colors')" class="tab-btn px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="colors">Colors</button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 bg-white">
+                <div class="flex mb-6 gap-2">
+                    <input type="text" id="newSuggestionInput" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="flex-1 border border-gray-300 rounded p-2" placeholder="New suggestion..." onkeypress="if(event.key==='Enter')addNewSuggestion()">
+                    <button onclick="addNewSuggestion()" class="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark font-medium">Add</button>
+                    <button onclick="clearAllSuggestions()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 font-medium"><i class="fas fa-trash-alt mr-1"></i>Clear</button>
+                </div>
+                <div id="suggestionsList" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Name & Address Modal ===== -->
+    <div id="nameAddressModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center p-4" onclick="closeNameAddressModal()">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-lg z-[101]" onclick="event.stopPropagation()">
+            <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+                <h3 class="text-lg font-bold"><i class="fas fa-building mr-2"></i>Name &amp; Address</h3>
+                <button onclick="closeNameAddressModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Company Name</label>
+                    <input type="text" id="naNameInput" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none" placeholder="Company Name">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Address</label>
+                    <textarea id="naAddressInput" rows="3" class="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-brand focus:border-brand outline-none resize-none" placeholder="Full Address"></textarea>
+                </div>
+                <div id="naPrevInfo" class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 hidden">
+                    <p class="font-semibold text-gray-600 mb-1"><i class="fas fa-history mr-1"></i>Previous Version:</p>
+                    <p id="naPrevName" class="truncate"></p>
+                    <p id="naPrevAddr" class="truncate"></p>
+                </div>
+                <div class="flex justify-between items-center gap-2">
+                    <button id="naRestoreBtn" onclick="restoreNameAddress()" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium text-sm"><i class="fas fa-undo mr-1"></i>Restore Previous</button>
+                    <div class="flex gap-2 ml-auto">
+                        <button onclick="closeNameAddressModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button>
+                        <button onclick="saveNameAddress()" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark font-medium text-sm"><i class="fas fa-save mr-1"></i>Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Server Settings Modal ===== -->
+    <div id="serverModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center p-4" onclick="closeServerModal()">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-xl z-[101]" onclick="event.stopPropagation()">
+            <div class="p-4 border-b flex justify-between items-center bg-brand text-white rounded-t-lg">
+                <h3 class="text-lg font-bold"><i class="fas fa-server mr-2"></i>Server Settings</h3>
+                <button onclick="closeServerModal()" class="text-white hover:text-gray-300 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6">
+                <p class="text-xs text-gray-500 mb-4 bg-yellow-50 border border-yellow-200 rounded p-2"><i class="fas fa-info-circle mr-1 text-yellow-600"></i>Changes take effect after saving and reloading the page.</p>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Firebase Config (JSON)</label>
+                    <textarea id="srv_configJson" rows="10" spellcheck="false" class="w-full border border-gray-300 rounded p-2 text-xs font-mono focus:ring-2 focus:ring-brand outline-none resize-none"></textarea>
+                </div>
+                <div id="srvPrevInfo" class="mt-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-500 hidden">
+                    <p class="font-semibold text-gray-600 mb-1"><i class="fas fa-history mr-1"></i>Previous Version saved — restore available.</p>
+                </div>
+                <div class="flex justify-between items-center gap-2 mt-4">
+                    <button id="srvRestoreBtn" onclick="restoreServerConfig()" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 font-medium text-sm disabled:opacity-40 disabled:cursor-not-allowed"><i class="fas fa-undo mr-1"></i>Restore to Previous Version</button>
+                    <div class="flex gap-2 ml-auto">
+                        <button onclick="closeServerModal()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 font-medium text-sm">Cancel</button>
+                        <button onclick="saveServerConfig()" class="px-4 py-2 bg-brand text-white rounded hover:bg-brand-dark font-medium text-sm"><i class="fas fa-save mr-1"></i>Save &amp; Reload</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Challan Detail / View Modal ===== -->
+    <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-[100] flex justify-center items-center p-1 overflow-y-auto">
+        <div id="detailModalInner" class="bg-white rounded-lg shadow-2xl w-full max-w-5xl my-1 z-[101] flex" onclick="event.stopPropagation()">
+            <div class="flex-1 flex flex-col min-w-0">
+                <!-- Word-like toolbar (all users, view mode) -->
+                <div id="wordToolbar" class="p-2 border-b bg-gray-50 rounded-tl-lg">
+                    <div class="word-toolbar" id="wordToolbarInner">
+                        <select id="rteFontFamily" class="word-toolbar-btn py-0.5 px-1" style="min-width:95px;font-size:11px" onchange="rteExec('fontName',this.value)" title="Font Family">
+                            <option value="Calibri">Calibri</option><option value="Arial">Arial</option><option value="Times New Roman">Times New Roman</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option><option value="Courier New">Courier New</option><option value="Tahoma">Tahoma</option>
+                        </select>
+                        <button class="word-toolbar-btn" onclick="rteFontSizeStep(-1)" title="Decrease font size" style="min-width:22px;font-weight:bold;font-size:14px;padding:1px 6px;">−</button>
+                        <select id="rteFontSize" class="word-toolbar-btn py-0.5 px-1" style="min-width:52px;font-size:11px" onchange="rteSetFontSize(this.value)" title="Font Size (px)">
+                            <option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="22">22</option><option value="24">24</option><option value="26">26</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="48">48</option><option value="60">60</option><option value="72">72</option>
+                        </select>
+                        <button class="word-toolbar-btn" onclick="rteFontSizeStep(1)" title="Increase font size" style="min-width:22px;font-weight:bold;font-size:14px;padding:1px 6px;">+</button>
+                        <div class="word-toolbar-sep"></div>
+                        <button class="word-toolbar-btn font-bold" id="rteBtn_bold" onclick="rteToggleFormat('bold')" title="Bold (Ctrl+B)" style="min-width:28px">B</button>
+                        <button class="word-toolbar-btn italic" id="rteBtn_italic" onclick="rteToggleFormat('italic')" title="Italic (Ctrl+I)" style="min-width:28px">I</button>
+                        <button class="word-toolbar-btn underline" id="rteBtn_underline" onclick="rteToggleFormat('underline')" title="Underline (Ctrl+U)" style="min-width:28px">U</button>
+                        <button class="word-toolbar-btn line-through text-sm" id="rteBtn_strikethrough" onclick="rteToggleFormat('strikethrough')" title="Strikethrough" style="min-width:28px">S</button>
+                        <div class="word-toolbar-sep"></div>
+                        <button class="word-toolbar-btn" onclick="rteExec('justifyLeft')" title="Align Left"><i class="fas fa-align-left"></i></button>
+                        <button class="word-toolbar-btn" onclick="rteExec('justifyCenter')" title="Align Center"><i class="fas fa-align-center"></i></button>
+                        <button class="word-toolbar-btn" onclick="rteExec('justifyRight')" title="Align Right"><i class="fas fa-align-right"></i></button>
+                        <button class="word-toolbar-btn" onclick="rteExec('justifyFull')" title="Justify"><i class="fas fa-align-justify"></i></button>
+                        <div class="word-toolbar-sep"></div>
+                        <button class="word-toolbar-btn" onclick="rteExec('indent')" title="Indent"><i class="fas fa-indent"></i></button>
+                        <button class="word-toolbar-btn" onclick="rteExec('outdent')" title="Outdent"><i class="fas fa-outdent"></i></button>
+                        <div class="word-toolbar-sep"></div>
+                        <label class="word-toolbar-btn" title="Text Color" style="cursor:pointer;position:relative"><i class="fas fa-font" id="rteFontColorIcon"></i><input type="color" id="rteForeColor" value="#000000" style="position:absolute;width:1px;height:1px;opacity:0;left:0;top:0" onchange="rteExec('foreColor',this.value);document.getElementById('rteFontColorIcon').style.color=this.value"></label>
+                        <label class="word-toolbar-btn" title="Highlight" style="cursor:pointer;position:relative"><i class="fas fa-highlighter" id="rteHiliteIcon" style="color:#fc0"></i><input type="color" id="rteHiliteColor" value="#ffff00" style="position:absolute;width:1px;height:1px;opacity:0;left:0;top:0" onchange="rteExec('hiliteColor',this.value)"></label>
+                        <div class="word-toolbar-sep"></div>
+                        <select class="word-toolbar-btn py-0.5 px-1" style="min-width:74px;font-size:11px" onchange="rteSetLineHeight(this.value)" title="Line Spacing" id="rteLineSpacing">
+                            <option value="">≡ Spacing</option><option value="1">Single</option><option value="1.2">1.2</option><option value="1.5">1.5</option><option value="2">Double</option><option value="2.5">2.5</option><option value="3">Triple</option>
+                        </select>
+                        <div class="word-toolbar-sep"></div>
+                        <button class="word-toolbar-btn" onclick="saveRteContent()" title="Save layout" style="background:#0A4038;color:#fff;border-color:#0A4038"><i class="fas fa-save"></i> Save</button>
+                        <button class="word-toolbar-btn" onclick="resetRteContent()" title="Reset to original layout" style="color:#dc2626;border-color:#fca5a5"><i class="fas fa-undo"></i> Reset</button>
+                    </div>
+                    <div class="flex items-center gap-2 mt-1 flex-wrap">
+                        <span class="text-xs text-gray-500"><i class="fas fa-info-circle mr-1 text-brand"></i>Select text then use toolbar to format. <kbd>Shift+Enter</kbd> = new line &nbsp;·&nbsp; <kbd>Shift+A</kbd> = select all &nbsp;·&nbsp; <kbd>Ctrl+B/I/U</kbd> = bold/italic/underline.</span>
+                    </div>
+                </div>
+                <div id="detailContent" class="bg-white overflow-auto" style="max-height:72vh;cursor:default;"></div>
+                <div class="flex justify-end gap-2 p-2 border-t bg-gray-50 rounded-bl-lg">
+                    <button onclick="closeDetailModal()" class="px-3 py-1.5 bg-gray-200 rounded hover:bg-gray-300 font-medium text-sm">Close</button>
+                    <button onclick="editCurrentChallan()" id="viewEditBtn" class="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm" style="display:none"><i class="fas fa-edit mr-1"></i>Edit</button>
+                    <button onclick="printChallan()" class="px-3 py-1.5 bg-brand text-white rounded hover:bg-brand-dark font-medium text-sm"><i class="fas fa-print mr-1"></i>Print</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mainApp" class="max-w-7xl mx-auto p-4 pb-12">
+        <!-- ===== APP HEADER ===== -->
+        <div class="bg-brand text-white p-4 rounded-t-lg flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-md gap-3">
+            <div>
+                <h1 id="headerCompanyName" class="text-xl font-bold tracking-wide">YIK YUE (H.K.) COMMERCIAL LIMITED</h1>
+                <p id="headerCompanyAddress" class="text-sm opacity-90">2/F, Plaza 33, Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh</p>
+                <p class="text-xs opacity-60 mt-0.5"><i class="fas fa-microchip mr-1"></i>Device: <span id="deviceIdShort"></span></p>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+                <!-- Admin-only buttons (hidden until login) -->
+                <button id="nameAddressBtn" onclick="openNameAddressModal()" class="hidden bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-200 transition shadow-sm text-sm"><i class="fas fa-building mr-2"></i>Name &amp; Address</button>
+                <button id="serverBtn" onclick="openServerModal()" class="hidden bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-200 transition shadow-sm text-sm"><i class="fas fa-server mr-2"></i>Server</button>
+                <button id="adminBtn" onclick="checkAdmin()" class="bg-white text-brand px-4 py-2 rounded font-bold hover:bg-gray-200 transition shadow-sm"><i class="fas fa-user-lock mr-2"></i>Admin</button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 shadow-md mb-6 border border-gray-200 rounded-lg">
+            <div class="flex justify-between items-center mb-4 border-b pb-2 text-brand-dark">
+                <h2 class="text-lg font-semibold"><i class="fas fa-file-invoice mr-2"></i><span id="formTitle">New Challan</span></h2>
+                <div class="flex items-center gap-2">
+                    <div id="challanNoDisplay" class="text-lg font-bold tracking-widest bg-brand-light text-brand px-4 py-1 rounded border border-brand"><span id="displayChallanNo">0001</span></div>
+                </div>
+            </div>
+            
+            <!-- Edit Indicator -->
+            <div id="editIndicator" class="hidden mb-4 p-3 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded">
+                <span><i class="fas fa-exclamation-triangle mr-2"></i>Editing Challan: <strong id="editingNoLabel"></strong></span>
+            </div>
+
+            <form id="challanForm" autocomplete="off">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div><label class="block text-sm font-medium text-gray-700">Date</label><input type="text" id="entryDate" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Select Date" required></div>
+                    <div class="relative"><label class="block text-sm font-medium text-gray-700">Attention Person</label><input type="text" id="entryAttention" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="e.g. MR. Ismail Hossain" required><div id="dropdown-entryAttention" class="suggestion-dropdown hidden"></div></div>
+                    <div class="relative"><label class="block text-sm font-medium text-gray-700">Organization</label><input type="text" id="entryOrganization" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="e.g. Hams Garments Ltd." required><div id="dropdown-entryOrganization" class="suggestion-dropdown hidden"></div></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="relative"><label class="block text-sm font-medium text-gray-700">Mobile No.</label><div class="mt-1 flex"><span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">+880</span><input type="text" id="entryMobile" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="block w-full border border-gray-300 rounded-r-md shadow-sm p-2" placeholder="1*********"><div id="dropdown-entryMobile" class="suggestion-dropdown hidden" style="left:60px;width:calc(100% - 60px)"></div></div></div>
+                </div>
+                <div class="mb-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <h3 class="text-sm font-bold text-gray-700 mb-3">Add Items</h3>
+                    <div class="grid grid-cols-12 gap-2 items-end">
+                        <div class="col-span-12 md:col-span-3 relative"><label class="block text-xs font-medium text-gray-500">Item</label><input type="text" id="entryItem" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded shadow-sm p-2 text-sm" placeholder="Item"><div id="dropdown-entryItem" class="suggestion-dropdown hidden"></div></div>
+                        <div class="col-span-12 md:col-span-2 relative"><label class="block text-xs font-medium text-gray-500">Style</label><input type="text" id="entryStyle" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded shadow-sm p-2 text-sm" placeholder="Style"><div id="dropdown-entryStyle" class="suggestion-dropdown hidden"></div></div>
+                        <div class="col-span-12 md:col-span-2 relative"><label class="block text-xs font-medium text-gray-500">Sample Type</label><input type="text" id="entrySampleType" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded shadow-sm p-2 text-sm" placeholder="Sample Type"><div id="dropdown-entrySampleType" class="suggestion-dropdown hidden"></div></div>
+                        <div class="col-span-12 md:col-span-2 relative"><label class="block text-xs font-medium text-gray-500">Color</label><input type="text" id="entryColor" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" class="mt-1 block w-full border border-gray-300 rounded shadow-sm p-2 text-sm" placeholder="Color"><div id="dropdown-entryColor" class="suggestion-dropdown hidden"></div></div>
+                        <div class="col-span-12 md:col-span-2">
+                            <label class="block text-xs font-medium text-gray-500">QTY</label>
+                            <div class="flex mt-1">
+                                <input type="text" id="entryQty" class="w-2/3 border border-gray-300 rounded-l shadow-sm p-2 text-sm" placeholder="1">
+                                <select id="entryUnit" class="w-1/3 border border-l-0 border-gray-300 rounded-r shadow-sm p-2 text-sm bg-gray-50">
+                                    <option value="Pc" selected>Pc</option>
+                                    <option value="Set">Set</option>
+                                    <option value="Yard">Yard</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-span-4 md:col-span-1 flex justify-end"><button type="button" onclick="addItemToForm()" class="bg-brand text-white px-3 py-2 rounded font-bold hover:bg-brand-dark transition shadow w-full md:w-auto text-center h-10 text-lg"><i class="fas fa-plus"></i></button></div>
+                    </div>
+                </div>
+                <div class="mb-6"><div class="overflow-x-auto border rounded-lg"><table class="min-w-full text-sm"><thead class="bg-brand-light"><tr><th class="py-2 px-3 text-left text-xs font-bold text-brand-dark w-16">S/L</th><th class="py-2 px-3 text-left text-xs font-bold text-brand-dark">Item</th><th class="py-2 px-3 text-left text-xs font-bold text-brand-dark w-28">Style</th><th class="py-2 px-3 text-left text-xs font-bold text-brand-dark w-36">Sample Type</th><th class="py-2 px-3 text-left text-xs font-bold text-brand-dark w-36">Color</th><th class="py-2 px-3 text-left text-xs font-bold text-brand-dark w-32">QTY</th><th class="py-2 px-3 text-center text-xs font-bold text-brand-dark w-20">Action</th></tr></thead><tbody id="addedItemsBody"></tbody></table></div><p id="noItemsMsg" class="text-center text-gray-400 text-xs py-4">No items added yet. Click <strong>+</strong> to add rows.</p></div>
+                <div class="flex items-end space-x-2"><button type="submit" id="submitBtn" class="bg-brand text-white px-6 py-2 rounded font-bold hover:bg-brand-dark transition shadow"><i class="fas fa-plus mr-1"></i>Create</button><button type="button" id="cancelEditBtn" onclick="cancelEdit()" class="hidden bg-orange-500 text-white px-6 py-2 rounded font-bold hover:bg-orange-600 transition shadow"><i class="fas fa-times mr-1"></i>Cancel Edit</button></div>
+            </form>
+        </div>
+        <div class="bg-white p-4 shadow-md rounded-lg mb-6 flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+            <div class="flex flex-wrap gap-2">
+                <button id="manageSuggestionsBtn" onclick="openSuggestionManager()" class="hidden bg-indigo-600 text-white px-3 py-2 rounded hover:bg-indigo-700 transition shadow text-sm"><i class="fas fa-list-alt mr-1"></i>Manage</button>
+                <button id="deleteSelectedBtn" onclick="promptBulkDelete()" class="hidden bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 transition shadow text-sm"><i class="fas fa-trash-alt mr-1"></i>Delete Marked</button>
+                <button id="uploadBgBtn" onclick="document.getElementById('bgUploadInput').click()" class="hidden bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 transition shadow text-sm"><i class="fas fa-image mr-1"></i>Upload BG</button>
+                <button id="removeBgBtn" onclick="removeBgImage()" class="hidden bg-gray-500 text-white px-3 py-2 rounded hover:bg-gray-600 transition shadow text-sm"><i class="fas fa-times mr-1"></i>Remove BG</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 justify-end w-full md:w-auto"><select id="monthFilter" class="border border-gray-300 rounded p-2 text-sm"><option value="all">All Months</option></select><div class="relative w-full md:w-64"><input type="text" id="searchInput" placeholder="Search..." class="border border-gray-300 rounded p-2 w-full text-sm"></div></div>
+        </div>
+        <div class="bg-white shadow-md rounded-lg overflow-x-auto"><table class="min-w-full bg-white"><thead><tr class="bg-brand-light text-brand-dark uppercase text-xs leading-normal border-b-2 border-brand"><th id="thSelectAll" class="py-3 px-4 text-left w-10 hidden"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th><th class="py-3 px-4 text-left w-10">#</th><th class="py-3 px-4 text-left">Challan No</th><th class="py-3 px-4 text-left">Date</th><th class="py-3 px-4 text-left">Attention</th><th class="py-3 px-4 text-left">Organization</th><th class="py-3 px-4 text-left">Mobile</th><th class="py-3 px-4 text-left">Items</th><th class="py-3 px-4 text-left">Action</th></tr></thead><tbody id="tableBody" class="text-gray-600 text-sm font-light"></tbody></table></div>
+    </div>
+
+<script>
+/* ===== Company Name & Address Defaults ===== */
+var DEFAULT_COMPANY_NAME = 'YIK YUE (H.K.) COMMERCIAL LIMITED';
+var DEFAULT_COMPANY_ADDRESS = '2/F, Plaza 33, 33 Gareeb-E-Newaz Avenue, Sector-13, Uttara, Dhaka-1230, Bangladesh.';
+var companyName = DEFAULT_COMPANY_NAME;
+var companyAddress = DEFAULT_COMPANY_ADDRESS;
+var prevCompanyName = '';
+var prevCompanyAddress = '';
+
+/* ===== Default Firebase Config ===== */
+var DEFAULT_SERVER_CONFIG = {
+    apiKey: "AIzaSyBk8CiGh7Ph4QRa6-nUiwse77DfM66P92U",
+    authDomain: "challan-a540b.firebaseapp.com",
+    databaseURL: "https://challan-a540b-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "challan-a540b",
+    storageBucket: "challan-a540b.firebasestorage.app",
+    messagingSenderId: "812290752218",
+    appId: "1:812290752218:web:76d112133ba282ed212fe3"
+};
+
+/* Load server config from localStorage (overrides default if saved) */
+(function(){
+    try {
+        var sc = localStorage.getItem('serverConfig');
+        if (sc) DEFAULT_SERVER_CONFIG = JSON.parse(sc);
+    } catch(e) {}
+})();
+
+var firebaseConfig = DEFAULT_SERVER_CONFIG;
+var db, isFirebaseConnected = false;
+try { firebase.initializeApp(firebaseConfig); db = firebase.database(); isFirebaseConnected = true; } catch(e) { console.error(e); }
+
+/* ===== Product Register Cross-App Sync ===== */
+var registerFirebaseConfig={apiKey:"AIzaSyB-sbCQRszLSnJv1ZkLD2Go4hQCvHImgxE",authDomain:"product-register-app.firebaseapp.com",databaseURL:"https://product-register-app-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"product-register-app",storageBucket:"product-register-app.firebasestorage.app",messagingSenderId:"173008706212",appId:"1:173008706212:web:84954fc4ce14883a02e431"};
+var registerDb=null;
+try{var registerApp=firebase.initializeApp(registerFirebaseConfig,'productRegisterApp');registerDb=registerApp.database();}catch(e){console.error('Product Register sync init failed:',e);}
+function syncChallanToProductRegister(challan){
+    if(!registerDb)return;
+    var its=challan.items||[];
+    var particulars=its.map(function(i){var parts=[];if(i.item)parts.push(i.item);if(i.color)parts.push(i.color);if(i.qty)parts.push(i.qty+(i.unit?' '+i.unit:''));return parts.join(' ');}).filter(Boolean).join(', ')||'Challan Items';
+    var style=its.length>0?(its[0].style||''):'';
+    var entry={type:'outgoing',date:challan.date,particulars:particulars,style:style,orgName:challan.organization||'',bearer:'',awbNo:challan.challanNo||'',remarks:challan.attentionPerson||(challan.mobile?'Mob: '+challan.mobile:''),_id:'entry_'+Date.now()+'_'+Math.random().toString(36).substr(2,9)};
+    registerDb.ref('registers').once('value',function(snap){
+        var regs=[];
+        var d=snap.val();
+        if(d){if(Array.isArray(d))regs=d;else if(typeof d==='object')regs=Object.values(d);}
+        regs.push(entry);
+        registerDb.ref('registers').set(regs).then(function(){showToast('Challan '+challan.challanNo+' synced to Product Register!','success');}).catch(function(err){console.error('Sync failed:',err);showToast('Challan created (sync failed)','error');});
+    });
+}
+
+var SUPER_USER_PASSWORD='ifarrafi';
+var isAdmin=false,deleteTargetId=null,isBulkDelete=false,datePickerInstance=null;
+var challans=[],currentFormItems=[],currentSuggestionTab='attentionPersons',currentViewId=null,currentBgImage=null;
+var isEditing=false,editingId=null,editingRowIdx=-1,editScrollTargetId=null;
+/* ===== Device Fingerprint ID ===== */
+function _fnv32(s){var h=0x811c9dc5>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,0x01000193)>>>0;}return('00000000'+(h>>>0).toString(16)).slice(-8);}
+function _canvasFP(){try{var c=document.createElement('canvas');c.width=220;c.height=60;var x=c.getContext('2d');x.textBaseline='top';x.font='bold 14px Arial,sans-serif';x.fillStyle='#f05c37';x.fillRect(0,0,220,60);x.fillStyle='#fff';x.fillText('DeviceFingerprint\u2022YYK',2,5);x.font='italic 11px Georgia';x.fillStyle='rgba(60,120,255,0.85)';x.fillText('ABC\u03B1\u03B2\u03B3\u00E9\u00F1',10,28);x.beginPath();x.arc(180,30,22,0,Math.PI*2);x.fillStyle='rgba(20,200,100,0.6)';x.fill();return c.toDataURL().slice(-80);}catch(e){return 'nc';}}
+function _buildFP(){var n=navigator,s=screen,tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone;}catch(e){}var parts=[(n.userAgent||'').replace(/\d+\.\d+\.\d+/g,'X'),n.language||n.userLanguage||'',n.hardwareConcurrency||'',n.deviceMemory||'',s.width+'x'+s.height,s.availWidth+'x'+s.availHeight,s.colorDepth||'',s.pixelDepth||'',n.platform||'',tz,(n.maxTouchPoints||0),_canvasFP()];return'fp_'+_fnv32(parts.join('||'));}
+function getDeviceId(){try{var stored=localStorage.getItem('yykDeviceId');if(stored&&stored.startsWith('fp_'))return stored;}catch(e){}var fp=_buildFP();try{localStorage.setItem('yykDeviceId',fp);}catch(e){}return fp;}
+var currentDeviceId=getDeviceId();
+window._yykDID=currentDeviceId;
+var DEFAULT_CHALLAN_FONT_SIZES={companyName:14,companyAddr:8,challanTitle:13,infoRow:10,toName:11,toOrg:10,tableHeader:9,tableBody:9.5,signLabel:9.5};
+var challanFontSizes={companyName:14,companyAddr:8,challanTitle:13,infoRow:10,toName:11,toOrg:10,tableHeader:9,tableBody:9.5,signLabel:9.5};
+
+/* ===== Font Family ===== */
+var DEFAULT_CHALLAN_FONT_FAMILY='Calibri';
+var challanFontFamily='Calibri';
+
+/* ===== Bold Fields (default matches original document styling) ===== */
+var DEFAULT_CHALLAN_BOLD={companyName:true,companyAddr:false,challanTitle:true,infoRow:true,toName:true,toOrg:false,tableHeader:true,tableBody:false,signLabel:true};
+var challanBoldFields={companyName:true,companyAddr:false,challanTitle:true,infoRow:true,toName:true,toOrg:false,tableHeader:true,tableBody:false,signLabel:true};
+
+var baseSuggestions={attentionPersons:{"MR. Ismail Hossain":50,"MR. Karim":20},organizations:{"Hams Garments Ltd.":100,"Eve Garments Ltd.":80},mobiles:{"1712345678":10},items:{"Nightwear":50,"NVE LABEL":30,"Polo Shirt":50},styles:{"183992":30,"183993":30},sampleTypes:{"Green Tag sample":100,"Red Tag sample":50},colors:{"327 Toffe":30,"White":50}};
+var dynamicSuggestions={attentionPersons:{},organizations:{},mobiles:{},items:{},styles:{},sampleTypes:{},colors:{}};
+
+function encodeFBKey(k){return String(k).replace(/\./g,'___DOT___').replace(/#/g,'___HASH___').replace(/\$/g,'___DOLLAR___').replace(/\//g,'___SLASH___').replace(/\[/g,'___LBRACK___').replace(/\]/g,'___RBRACK___');}
+function decodeFBKey(k){return String(k).replace(/___DOT___/g,'.').replace(/___HASH___/g,'#').replace(/___DOLLAR___/g,'$').replace(/___SLASH___/g,'/').replace(/___LBRACK___/g,'[').replace(/___RBRACK___/g,']');}
+function encodeForFB(o){if(o===null||o===undefined)return o;if(Array.isArray(o))return o.map(function(i){return encodeForFB(i);});if(typeof o==='object'){var r={};for(var k in o){if(o.hasOwnProperty(k))r[encodeFBKey(k)]=encodeForFB(o[k]);}return r;}return o;}
+function decodeFromFB(o){if(o===null||o===undefined)return o;if(Array.isArray(o))return o.map(function(i){return decodeFromFB(i);});if(typeof o==='object'){var r={};for(var k in o){if(o.hasOwnProperty(k))r[decodeFBKey(k)]=decodeFromFB(o[k]);}return r;}return o;}
+function saveData(k,d){if(isFirebaseConnected){var v=(k==='suggestions')?encodeForFB(d):d;db.ref(k).set(v).catch(function(e){console.error(e);});}else{try{sessionStorage.setItem(k,JSON.stringify(d));}catch(e){}}}
+function loadData(k,f){try{var s=sessionStorage.getItem(k);if(s)return JSON.parse(s);}catch(e){}return f;}
+function commitAction(){saveData('challans',challans);saveData('suggestions',dynamicSuggestions);processAndRender();}
+function escapeHtml(t){return t?String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):'';}
+function showToast(m,t){var e=document.getElementById('toastContainer');e.textContent=m;e.className='toast toast-'+t+' show';setTimeout(function(){e.className='toast';},4000);}
+function formatDateDisplay(ds){if(!ds)return'-';try{var d=new Date(ds+'T00:00:00');return String(d.getDate()).padStart(2,'0')+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+d.getFullYear();}catch(e){return ds;}}
+
+function getPluralUnit(qty, unit) {
+    unit = unit || 'Pc';
+    var num = parseInt(String(qty).replace(/[^0-9]/g, ''));
+    if (!isNaN(num) && num > 1) {
+        return unit + 's';
+    }
+    return unit;
+}
+
+function parseQtyNumber(q){if(!q)return 0;var n=parseInt(String(q).replace(/[^0-9]/g,''));return isNaN(n)?0:n;}
+
+function formatTotalQty(items){
+    if(!items || !items.length) return '0 Pcs';
+    var sum = items.reduce(function(s,it){return s+parseQtyNumber(it.qty);},0);
+    var repUnit = items[0].unit || 'Pc';
+    return String(sum).padStart(2,'0') + ' ' + getPluralUnit(sum, repUnit);
+}
+
+function getNextChallanNo() {
+    var existingNums = challans.map(function(c) { return parseInt(c.challanNo); }).filter(function(n) { return !isNaN(n); });
+    var next = 1;
+    while (existingNums.includes(next)) {
+        next++;
+    }
+    return String(next).padStart(4, '0');
+}
+
+function loadBgImage(){if(isFirebaseConnected){db.ref('bgImage').once('value',function(s){if(s.val())currentBgImage=s.val();});}else{try{var s=sessionStorage.getItem('bgImage');if(s)currentBgImage=JSON.parse(s);}catch(e){}}}
+function saveBgImage(b){currentBgImage=b;if(isFirebaseConnected){db.ref('bgImage').set(b).catch(function(e){console.error(e);});}else{try{sessionStorage.setItem('bgImage',JSON.stringify(b));}catch(e){}}showToast('Background image saved!','success');}
+function removeBgImage(){currentBgImage=null;if(isFirebaseConnected){db.ref('bgImage').remove();}else{try{sessionStorage.removeItem('bgImage');}catch(e){}}showToast('Background image removed!','success');}
+function handleBgUpload(ev){var f=ev.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){showToast('Select an image','error');return;}var r=new FileReader();r.onload=function(e){var img=new Image();img.onload=function(){var c=document.createElement('canvas');var w=img.width,h=img.height;if(w>1500){h=h*1500/w;w=1500;}if(h>2200){w=w*2200/h;h=2200;}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);saveBgImage(c.toDataURL('image/jpeg',0.82));};img.src=e.target.result;};r.readAsDataURL(f);ev.target.value='';}
+
+function updateChallanNoField(){var e=document.getElementById('displayChallanNo');if(e)e.textContent=getNextChallanNo();}
+
+function getMergedSuggestions(c){var m={};for(var k in baseSuggestions[c])m[k]=baseSuggestions[c][k];for(var k in dynamicSuggestions[c])m[k]=(m[k]||0)+dynamicSuggestions[c][k];return Object.entries(m).filter(function(i){return i[1]>0;}).sort(function(a,b){return b[1]-a[1];}).map(function(i){return i[0];});}
+function populateDropdown(dd,c,f){dd.innerHTML='';var a=getMergedSuggestions(c),fl=f?a.filter(function(i){return i.toLowerCase().includes(f.toLowerCase());}):a;fl.forEach(function(i){var d=document.createElement('div');d.className='suggestion-item';d.textContent=i;d.onmousedown=function(e){e.preventDefault();document.getElementById(dd.id.replace('dropdown-','')).value=i;dd.classList.add('hidden');};dd.appendChild(d);});dd.classList.toggle('hidden',fl.length===0);}
+function setupSuggestionInput(id,c){var i=document.getElementById(id),dd=document.getElementById('dropdown-'+id);if(!i||!dd)return;i.addEventListener('focus',function(){populateDropdown(dd,c,i.value);});i.addEventListener('input',function(){populateDropdown(dd,c,i.value);});i.addEventListener('blur',function(){setTimeout(function(){dd.classList.add('hidden');},150);});}
+function addSuggestion(c,v){if(v&&dynamicSuggestions[c]!==undefined){if(!dynamicSuggestions[c][v])dynamicSuggestions[c][v]=0;dynamicSuggestions[c][v]++;}}
+
+function addItemToForm(){
+    var it=document.getElementById('entryItem').value.trim();
+    var st=document.getElementById('entryStyle').value.trim();
+    var sa=document.getElementById('entrySampleType').value.trim();
+    var co=document.getElementById('entryColor').value.trim();
+    var qt=document.getElementById('entryQty').value.trim();
+    var un=document.getElementById('entryUnit').value.trim();
+
+    if(!it&&!qt){showToast('Enter Item or QTY','error');return;}
+
+    if(it) addSuggestion('items', it);
+    if(st) addSuggestion('styles', st);
+    if(sa) addSuggestion('sampleTypes', sa);
+    if(co) addSuggestion('colors', co);
+    
+    saveData('suggestions', dynamicSuggestions);
+
+    currentFormItems.push({item:it,style:st,sampleType:sa,color:co,qty:qt, unit:un});
+    renderFormItems();
+    
+    ['entryItem','entryStyle','entrySampleType','entryColor','entryQty'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('entryUnit').value = 'Pc';
+    
+    document.getElementById('entryItem').focus();
+}
+
+function startRowEdit(idx){
+    editingRowIdx = idx;
+    renderFormItems();
+    setTimeout(function(){
+        var firstInput = document.getElementById('inline-item-'+idx);
+        if(firstInput) firstInput.focus();
+    }, 50);
+}
+
+function cancelRowEdit(){
+    editingRowIdx = -1;
+    renderFormItems();
+}
+
+function saveRowEdit(idx){
+    var it = document.getElementById('inline-item-'+idx).value.trim();
+    var st = document.getElementById('inline-style-'+idx).value.trim();
+    var sa = document.getElementById('inline-sampleType-'+idx).value.trim();
+    var co = document.getElementById('inline-color-'+idx).value.trim();
+    var qt = document.getElementById('inline-qty-'+idx).value.trim();
+    var un = document.getElementById('inline-unit-'+idx).value.trim();
+
+    if(!it&&!qt){showToast('Row cannot be empty','error');return;}
+
+    currentFormItems[idx] = {item:it, style:st, sampleType:sa, color:co, qty:qt, unit:un};
+
+    if(it) addSuggestion('items', it);
+    if(st) addSuggestion('styles', st);
+    if(sa) addSuggestion('sampleTypes', sa);
+    if(co) addSuggestion('colors', co);
+    saveData('suggestions', dynamicSuggestions);
+
+    editingRowIdx = -1;
+    renderFormItems();
+}
+
+function removeFormItem(i){currentFormItems.splice(i,1);if(editingRowIdx === i) editingRowIdx = -1; renderFormItems();}
+
+function renderFormItems(){
+    var tb=document.getElementById('addedItemsBody'),nm=document.getElementById('noItemsMsg');
+    tb.innerHTML='';
+    if(!currentFormItems.length){nm.classList.remove('hidden');return;}
+    nm.classList.add('hidden');
+
+    currentFormItems.forEach(function(it,i){
+        var tr=document.createElement('tr');
+        
+        if (i === editingRowIdx) {
+            tr.className = 'border-b border-gray-200 bg-yellow-50';
+            
+            var createInputCell = function(label, val, type, widthClass, idSuffix) {
+                return '<td class="py-1 px-2 '+(widthClass||'')+' relative"><div class="relative w-full"><input type="text" id="inline-'+idSuffix+'-'+i+'" value="'+escapeHtml(val||'')+'" class="w-full border border-gray-300 rounded shadow-sm p-1 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none" autocomplete="off"><div id="dropdown-inline-'+idSuffix+'-'+i+'" class="suggestion-dropdown hidden"></div></div></td>';
+            };
+
+            var createQtyUnitCell = function(qty, unit) {
+                return '<td class="py-1 px-2 relative"><div class="flex w-full"><input type="text" id="inline-qty-'+i+'" value="'+escapeHtml(qty||'')+'" class="w-2/3 border border-gray-300 rounded-l shadow-sm p-1 text-sm focus:ring-1 focus:ring-brand focus:border-brand outline-none"><select id="inline-unit-'+i+'" class="w-1/3 border border-l-0 border-gray-300 rounded-r shadow-sm p-1 text-sm bg-gray-50"><option value="Pc" '+(unit==='Pc'?'selected':'')+'>Pc</option><option value="Set" '+(unit==='Set'?'selected':'')+'>Set</option><option value="Yard" '+(unit==='Yard'?'selected':'')+'>Yard</option></select></div></td>';
+            };
+
+            tr.innerHTML = 
+                '<td class="py-2 px-3 text-gray-500 font-mono text-xs font-bold">'+String(i+1).padStart(2,'0')+'</td>' +
+                createInputCell('Item', it.item, 'items', '', 'item') +
+                createInputCell('Style', it.style, 'styles', 'w-28', 'style') +
+                createInputCell('Sample Type', it.sampleType, 'sampleTypes', 'w-36', 'sampleType') +
+                createInputCell('Color', it.color, 'colors', 'w-36', 'color') +
+                createQtyUnitCell(it.qty, it.unit) + 
+                '<td class="py-2 px-3 text-center"><div class="flex justify-center gap-1"><button type="button" onclick="saveRowEdit('+i+')" class="text-green-600 hover:text-green-800 p-1" title="Save"><i class="fas fa-check-circle"></i></button><button type="button" onclick="cancelRowEdit()" class="text-red-500 hover:text-red-700 p-1" title="Cancel"><i class="fas fa-times-circle"></i></button></div></td>';
+            
+            tb.appendChild(tr);
+
+            setupSuggestionInput('inline-item-'+i, 'items');
+            setupSuggestionInput('inline-style-'+i, 'styles');
+            setupSuggestionInput('inline-sampleType-'+i, 'sampleTypes');
+            setupSuggestionInput('inline-color-'+i, 'colors');
+
+        } else {
+            var displayQty = (it.qty || '-') + (it.qty ? ' ' + getPluralUnit(it.qty, it.unit) : '');
+            
+            tr.className='border-b border-gray-100 hover:bg-gray-50 transition';
+            tr.innerHTML='<td class="py-2 px-3 text-gray-500 font-mono text-xs font-bold">'+String(i+1).padStart(2,'0')+'</td><td class="py-2 px-3 text-sm">'+escapeHtml(it.item||'-')+'</td><td class="py-2 px-3 text-sm">'+escapeHtml(it.style||'-')+'</td><td class="py-2 px-3 text-sm">'+escapeHtml(it.sampleType||'-')+'</td><td class="py-2 px-3 text-sm">'+escapeHtml(it.color||'-')+'</td><td class="py-2 px-3 text-sm">'+escapeHtml(displayQty)+'</td><td class="py-2 px-3 text-center"><div class="flex justify-center gap-2"><button type="button" onclick="startRowEdit('+i+')" class="text-blue-500 hover:text-blue-700" title="Edit"><i class="fas fa-edit"></i></button><button type="button" onclick="removeFormItem('+i+')" class="text-red-400 hover:text-red-600" title="Delete"><i class="fas fa-trash"></i></button></div></td>';
+            tb.appendChild(tr);
+        }
+    });
+}
+
+function resetForm(){
+    document.getElementById('challanForm').reset();
+    document.getElementById('entryUnit').value = 'Pc';
+    datePickerInstance.setDate(new Date());
+    currentFormItems=[];
+    editingRowIdx = -1;
+    renderFormItems();
+    isEditing=false;
+    editingId=null;
+    editScrollTargetId=null;
+    document.getElementById('formTitle').textContent='New Challan';
+    var sb=document.getElementById('submitBtn');
+    sb.innerHTML='<i class="fas fa-plus mr-1"></i>Create';
+    sb.classList.remove('bg-green-600','hover:bg-green-700');
+    sb.classList.add('bg-brand','hover:bg-brand-dark');
+    document.getElementById('cancelEditBtn').classList.add('hidden');
+    document.getElementById('editIndicator').classList.add('hidden');
+    document.getElementById('challanNoDisplay').classList.remove('hidden');
+    updateChallanNoField();
+}
+
+function editChallan(id){
+    var c=challans.find(function(ch){return ch._id===id;});
+    if(!c)return;
+    if(!isAdmin&&c.deviceId&&c.deviceId!==currentDeviceId){showToast('You can only edit your own challans','error');return;}
+    
+    closeDetailModal();
+    
+    isEditing=true;
+    editingId=id;
+    editingRowIdx = -1;
+    
+    document.getElementById('formTitle').textContent='Edit Challan';
+    var sb=document.getElementById('submitBtn');
+    sb.innerHTML='<i class="fas fa-save mr-1"></i>Update';
+    sb.classList.remove('bg-brand','hover:bg-brand-dark');
+    sb.classList.add('bg-green-600','hover:bg-green-700');
+    document.getElementById('cancelEditBtn').classList.remove('hidden');
+    document.getElementById('editIndicator').classList.remove('hidden');
+    document.getElementById('editingNoLabel').textContent=c.challanNo;
+    document.getElementById('challanNoDisplay').classList.add('hidden');
+    
+    datePickerInstance.setDate(c.date);
+    document.getElementById('entryAttention').value=c.attentionPerson||'';
+    document.getElementById('entryOrganization').value=c.organization||'';
+    document.getElementById('entryMobile').value=c.mobile||'';
+    
+    currentFormItems=(c.items||[]).map(function(it){return Object.assign({},it);});
+    renderFormItems();
+    
+    editScrollTargetId=id;
+    renderTable();
+    var formSection=document.querySelector('.bg-white.p-6.shadow-md.mb-6');
+    if(formSection)formSection.scrollIntoView({behavior:'smooth',block:'start'});
+    else window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function editCurrentChallan(){
+    if(currentViewId) editChallan(currentViewId);
+}
+
+function cancelEdit(){
+    var _scrollId=editScrollTargetId;
+    resetForm();
+    renderTable();
+    if(_scrollId){
+        setTimeout(function(){
+            var r=document.querySelector('tr[data-challan-id="'+_scrollId+'"]');
+            if(r){r.scrollIntoView({behavior:'smooth',block:'nearest'});r.classList.add('row-flash');setTimeout(function(){r.classList.remove('row-flash');},10100);}
+        },80);
+    }
+}
+
+function handleSubmit(e){
+    e.preventDefault();
+    
+    if(editingRowIdx > -1){
+        showToast('Please save or cancel the row edit first.','error');
+        return;
+    }
+
+    var dt=document.getElementById('entryDate').value;
+    var ap=document.getElementById('entryAttention').value.trim();
+    var og=document.getElementById('entryOrganization').value.trim();
+    var mb=document.getElementById('entryMobile').value.trim();
+    var its=currentFormItems.slice();
+
+    if(!dt||!ap||!og){showToast('Fill required fields','error');return;}
+    if(!its.length){showToast('Add items','error');return;}
+
+    if(isEditing){
+        var idx=challans.findIndex(function(c){return c._id===editingId;});
+        if(idx!==-1){
+            challans[idx].date=dt;
+            challans[idx].attentionPerson=ap;
+            challans[idx].organization=og;
+            challans[idx].mobile=mb;
+            challans[idx].items=its;
+            showToast('Challan '+challans[idx].challanNo+' updated!','success');
+            var viewId=editingId;
+            commitAction();
+            resetForm();
+            viewChallan(viewId);
+        }
+    }else{
+        var cn=getNextChallanNo();
+        if(challans.find(function(c){return c.challanNo===cn;})){showToast('Sequence error, please retry','error');return;}
+        
+        addSuggestion('attentionPersons',ap);
+        addSuggestion('organizations',og);
+        addSuggestion('mobiles',mb);
+        
+        var en={date:dt,challanNo:cn,attentionPerson:ap,organization:og,mobile:mb,items:its,deviceId:currentDeviceId,_id:'ch_'+Date.now()+'_'+Math.random().toString(36).substr(2,9)};
+        challans.push(en);
+        
+        var nid=en._id;
+        commitAction();
+        syncChallanToProductRegister(en);
+        resetForm();
+        viewChallan(nid);
+    }
+}
+
+function processAndRender(){challans.forEach(function(c){if(!c._id)c._id='gen_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);});updateChallanNoField();populateMonthFilter();renderTable();toggleAdminUI(isAdmin);}
+function populateMonthFilter(){var s=document.getElementById('monthFilter'),cv=s.value,ms=new Set();challans.forEach(function(c){if(c.date){var p=c.date.split('-');if(p.length>=2)ms.add(p[0]+'-'+p[1]);}});var so=Array.from(ms).sort().reverse();s.innerHTML='<option value="all">All Months</option>';so.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=new Date(m+'-02').toLocaleDateString('en-US',{year:'numeric',month:'long'});s.appendChild(o);});s.value=cv||'all';}
+function renderTable(){var mf=document.getElementById('monthFilter').value,st=document.getElementById('searchInput').value.toLowerCase(),tb=document.getElementById('tableBody');document.getElementById('thSelectAll').classList.toggle('hidden',!isAdmin);var fl=challans.filter(function(c){var mm=true;if(mf!=='all'&&c.date){var p=c.date.split('-');mm=p[0]+'-'+p[1]===mf;}else if(mf!=='all'&&!c.date)mm=false;var ms=true;if(st)ms=Object.values(c).some(function(v){return String(v).toLowerCase().includes(st);})||(c.items||[]).some(function(it){return(it.item||'').toLowerCase().includes(st);});return mm&&ms;}).sort(function(a,b){return(b.date||'').localeCompare(a.date||'')||(b.challanNo||'').localeCompare(a.challanNo||'');});tb.innerHTML='';if(!fl.length){tb.innerHTML='<tr><td colspan="9" class="py-4 text-center text-gray-500">No challans found.</td></tr>';return;}fl.forEach(function(c,idx){var tr=document.createElement('tr');tr.className='border-b border-gray-200 '+(idx%2===0?'bg-white':'bg-gray-50')+' hover:bg-gray-100 transition cursor-pointer';tr.setAttribute('data-challan-id',c._id);var ip=(c.items||[]).map(function(it){return it.item+(it.qty?' ('+it.qty+' '+getPluralUnit(it.qty, it.unit)+')':'');}).join(', ')||'-';var _isOwner=c.deviceId===currentDeviceId;var ah='<button onclick="event.stopPropagation();viewChallan(\''+c._id+'\')" class="text-brand hover:text-brand-dark mr-2" title="View"><i class="fas fa-eye"></i></button>';if(isAdmin||_isOwner)ah+='<button onclick="event.stopPropagation();editChallan(\''+c._id+'\')" class="text-blue-500 hover:text-blue-700 mr-2" title="Edit"><i class="fas fa-edit"></i></button>';if(isAdmin||_isOwner)ah+='<button onclick="event.stopPropagation();deleteEntry(\''+c._id+'\')" class="text-red-500 hover:text-red-700" title="Delete"><i class="fas fa-trash"></i></button>';var cb=isAdmin?'<td class="py-3 px-4"><input type="checkbox" class="row-check" data-id="'+c._id+'"></td>':'';var rh=cb+'<td class="py-3 px-4">'+(idx+1)+'</td><td class="py-3 px-4 font-bold text-brand">'+escapeHtml(c.challanNo||'N/A')+'</td><td class="py-3 px-4 whitespace-nowrap">'+formatDateDisplay(c.date)+'</td><td class="py-3 px-4">'+escapeHtml(c.attentionPerson||'-')+'</td><td class="py-3 px-4">'+escapeHtml(c.organization||'-')+'</td><td class="py-3 px-4">'+escapeHtml(c.mobile?'+880 '+c.mobile:'-')+'</td><td class="py-3 px-4 text-xs text-gray-500 max-w-xs truncate">'+escapeHtml(ip)+'</td><td class="py-3 px-4">'+ah+'</td>';tr.innerHTML=rh;tr.addEventListener('click',function(){viewChallan(c._id);});tb.appendChild(tr);});}
+
+/* ===== Helper: font-weight string ===== */
+function fw(bold){return bold?'bold':'normal';}
+
+function generateChallanHTML(c){
+    var pf=challanFontSizes;
+    var bf=challanBoldFields;
+    var ff=challanFontFamily;
+    var its=c.items||[],ds=formatDateDisplay(c.date),tq=formatTotalQty(its);
+    var bs=currentBgImage?'background-image:url(\''+currentBgImage+'\');':'';
+    var ih=its.map(function(it,i){return '<tr><td style="text-align:center;font-size:'+pf.tableBody+'px;font-weight:'+fw(bf.tableBody)+'">'+String(i+1).padStart(2,'0')+'</td><td style="font-size:'+pf.tableBody+'px;font-weight:'+fw(bf.tableBody)+'">'+escapeHtml(it.item||'-')+'</td><td style="font-size:'+pf.tableBody+'px;font-weight:'+fw(bf.tableBody)+'">'+escapeHtml(it.style||'-')+'</td><td style="font-size:'+pf.tableBody+'px;font-weight:'+fw(bf.tableBody)+'">'+escapeHtml(it.sampleType||'-')+'</td><td style="font-size:'+pf.tableBody+'px;font-weight:'+fw(bf.tableBody)+'">'+escapeHtml(it.color||'-')+'</td><td style="text-align:center;font-size:'+pf.tableBody+'px;font-weight:'+fw(bf.tableBody)+'">'+escapeHtml((it.qty||'')+' '+getPluralUnit(it.qty, it.unit))+'</td></tr>';}).join('');
+    var h='<div class="challan-doc" style="font-family:\''+ff+'\',sans-serif;">';
+    h+='<div class="challan-header">';
+    h+='<p class="company-name" style="font-size:'+pf.companyName+'px;font-weight:'+fw(bf.companyName)+'">'+escapeHtml(companyName)+'</p>';
+    h+='<p class="company-sub">Bangladesh Liaison Office:</p>';
+    h+='<p class="company-addr" style="font-size:'+pf.companyAddr+'px;font-weight:'+fw(bf.companyAddr)+'">'+escapeHtml(companyAddress)+'</p>';
+    h+='<hr class="header-line"></div>';
+    h+='<div class="challan-ruler" style="'+bs+'">';
+    h+='<div class="challan-body">';
+    h+='<div class="title-section"><span class="title-text" style="font-size:'+pf.challanTitle+'px;font-weight:'+fw(bf.challanTitle)+'">DELIVERY CHALLAN</span></div>';
+    h+='<div class="info-row" style="font-size:'+pf.infoRow+'px;font-weight:'+fw(bf.infoRow)+'"><span>Challan No: '+escapeHtml(c.challanNo||'N/A')+'</span><span>Date: '+ds+'</span></div>';
+    h+='<div class="to-section">';
+    h+='<div class="to-label" style="font-size:'+pf.infoRow+'px;font-weight:'+fw(bf.infoRow)+'">TO,</div>';
+    h+='<div class="to-name" style="font-size:'+pf.toName+'px;font-weight:'+fw(bf.toName)+'">'+escapeHtml(c.attentionPerson||'-')+'</div>';
+    h+='<div class="to-org" style="font-size:'+pf.toOrg+'px;font-weight:'+fw(bf.toOrg)+'">'+escapeHtml(c.organization||'-')+'</div>';
+    if(c.mobile)h+='<div class="to-mobile" style="font-size:'+pf.companyAddr+'px;font-weight:'+fw(bf.companyAddr)+'">Mobile: +880 '+escapeHtml(c.mobile)+'</div>';
+    h+='</div>';
+    h+='<table><thead><tr>';
+    h+='<th style="width:42px;font-size:'+pf.tableHeader+'px;font-weight:'+fw(bf.tableHeader)+'">S/L No.</th>';
+    h+='<th style="font-size:'+pf.tableHeader+'px;font-weight:'+fw(bf.tableHeader)+'">Item</th>';
+    h+='<th style="font-size:'+pf.tableHeader+'px;font-weight:'+fw(bf.tableHeader)+'">Style</th>';
+    h+='<th style="font-size:'+pf.tableHeader+'px;font-weight:'+fw(bf.tableHeader)+'">Sample Type</th>';
+    h+='<th style="font-size:'+pf.tableHeader+'px;font-weight:'+fw(bf.tableHeader)+'">Color</th>';
+    h+='<th style="width:55px;font-size:'+pf.tableHeader+'px;font-weight:'+fw(bf.tableHeader)+'">QTY</th>';
+    h+='</tr></thead><tbody>'+ih+'</tbody>';
+    h+='<tfoot><tr><td colspan="5" class="total-label" style="font-size:'+pf.tableBody+'px;font-weight:'+fw(bf.tableBody)+'">TOTAL</td><td class="total-value" style="font-size:'+pf.tableBody+'px;font-weight:'+fw(bf.tableBody)+'">'+tq+'</td></tr></tfoot></table>';
+    h+='</div>';
+    h+='<div class="signature-section">';
+    h+='<div class="signature-box"><div class="signature-line" style="font-size:'+pf.signLabel+'px;font-weight:'+fw(bf.signLabel)+'">Received By</div></div>';
+    h+='<div class="signature-box"><div class="signature-line" style="font-size:'+pf.signLabel+'px;font-weight:'+fw(bf.signLabel)+'">Authorized Signature</div></div>';
+    h+='</div></div></div>';
+    return h;
+}
+
+function viewChallan(id){
+    var c=challans.find(function(ch){return ch._id===id;});if(!c)return;
+    currentViewId=id;
+    var dc=document.getElementById('detailContent');
+    dc.innerHTML=generateChallanHTML(c);
+    renderChallanFontSizeControls();
+    var _canEdit=isAdmin||(c.deviceId===currentDeviceId);
+    var _editBtn=document.getElementById('viewEditBtn');
+    if(_editBtn)_editBtn.style.display=_canEdit?'':'none';
+    document.getElementById('detailModal').classList.remove('hidden');
+    document.body.style.overflow='hidden';
+    /* Show word toolbar for ALL users */
+    var wordBar=document.getElementById('wordToolbar');
+    if(wordBar)wordBar.classList.remove('hidden');
+    /* Make doc editable for all users */
+    setTimeout(function(){
+        var d=dc.querySelector('.challan-doc');
+        if(d){
+            loadChallanRteContent(d);
+            makeDocEditable(d);
+        }
+    },80);
+}
+function closeDetailModal(){document.getElementById('detailModal').classList.add('hidden');document.body.style.overflow='';currentViewId=null;}
+function refreshChallanView(){
+    if(!currentViewId)return;
+    var c=challans.find(function(ch){return ch._id===currentViewId;});if(!c)return;
+    var dc=document.getElementById('detailContent');
+    dc.innerHTML=generateChallanHTML(c);
+    setTimeout(function(){
+        var d=dc.querySelector('.challan-doc');
+        if(d){loadChallanRteContent(d);makeDocEditable(d);}
+    },80);
+}
+
+/* ===== Rich Text Editor (Word-like) for Challan ===== */
+function getChallanRteDoc(){
+    var dc=document.getElementById('detailContent');
+    return dc?dc.querySelector('.challan-doc'):null;
+}
+
+function makeDocEditable(docEl){
+    if(!docEl)return;
+    docEl.contentEditable='true';
+    docEl.classList.add('rte-editable');
+    docEl.removeEventListener('keydown',_rteKeyHandler,false);
+    docEl.removeEventListener('keyup',_rteUpdateState,false);
+    docEl.removeEventListener('mouseup',_rteUpdateState,false);
+    docEl.addEventListener('keydown',_rteKeyHandler,false);
+    docEl.addEventListener('keyup',_rteUpdateState,false);
+    docEl.addEventListener('mouseup',_rteUpdateState,false);
+    document.removeEventListener('selectionchange',_rteUpdateState,false);
+    document.addEventListener('selectionchange',_rteUpdateState,false);
+    docEl.addEventListener('keydown',function(e){
+        if(e.key==='Enter'&&!e.shiftKey){
+            e.preventDefault();
+            document.execCommand('insertHTML',false,'<br><br>');
+        }
+    },false);
+}
+
+function _rteKeyHandler(e){
+    if(e.shiftKey&&e.key==='Enter'){e.preventDefault();document.execCommand('insertHTML',false,'<br>');return;}
+    if(e.shiftKey&&!e.ctrlKey&&!e.metaKey&&e.key.toLowerCase()==='a'){
+        e.preventDefault();
+        var d=getChallanRteDoc();
+        if(d){var r=document.createRange();r.selectNodeContents(d);var s=window.getSelection();s.removeAllRanges();s.addRange(r);}
+        return;
+    }
+    clearTimeout(_rteKeyHandler._t);
+    _rteKeyHandler._t=setTimeout(function(){autoChallanSaveRte();},1800);
+}
+
+function _rteUpdateState(){updateRteToolbarState();}
+
+function rteExec(cmd,val){
+    var d=getChallanRteDoc();if(!d)return;
+    d.focus();
+    document.execCommand(cmd,false,val||null);
+    updateRteToolbarState();
+    clearTimeout(rteExec._t);
+    rteExec._t=setTimeout(autoChallanSaveRte,1800);
+}
+
+function rteToggleFormat(cmd){rteExec(cmd);}
+
+function rteSetFontSize(px){
+    px=parseInt(px);if(!px||px<1)return;
+    var d=getChallanRteDoc();if(!d)return;d.focus();
+    var sel=window.getSelection();
+    if(!sel||sel.rangeCount===0||sel.isCollapsed){
+        var szSel=document.getElementById('rteFontSize');if(szSel)szSel.value=_closestFontSizeOption(px);
+        return;
+    }
+    document.execCommand('fontSize',false,'7');
+    var fonts=d.querySelectorAll('font[size="7"]');
+    fonts.forEach(function(f){
+        var span=document.createElement('span');
+        span.style.fontSize=px+'px';
+        while(f.firstChild)span.appendChild(f.firstChild);
+        f.parentNode.replaceChild(span,f);
+    });
+    updateRteToolbarState();
+    clearTimeout(rteSetFontSize._t);
+    rteSetFontSize._t=setTimeout(autoChallanSaveRte,1200);
+}
+
+function rteFontSizeStep(delta){
+    var d=getChallanRteDoc();if(!d)return;
+    var sel=window.getSelection();
+    var currentPx=12;
+    if(sel&&sel.rangeCount>0){
+        var node=sel.getRangeAt(0).startContainer;
+        while(node&&node.nodeType===3)node=node.parentNode;
+        if(node&&node!==d&&d.contains(node)){
+            try{currentPx=parseInt(window.getComputedStyle(node).fontSize)||12;}catch(e){}
+        }
+    }
+    rteSetFontSize(Math.max(6,Math.min(200,currentPx+delta)));
+    var newPx=Math.max(6,Math.min(200,currentPx+delta));
+    var szSel=document.getElementById('rteFontSize');
+    if(szSel)szSel.value=_closestFontSizeOption(newPx);
+}
+
+function _closestFontSizeOption(px){
+    var szSel=document.getElementById('rteFontSize');if(!szSel)return px;
+    var best=szSel.options[0].value,bestDiff=Infinity;
+    for(var i=0;i<szSel.options.length;i++){
+        var diff=Math.abs(parseInt(szSel.options[i].value)-px);
+        if(diff<bestDiff){bestDiff=diff;best=szSel.options[i].value;}
+    }
+    return best;
+}
+
+function rteSetLineHeight(val){
+    if(!val)return;
+    var d=getChallanRteDoc();if(!d)return;
+    var sel=window.getSelection();
+    var target=d;
+    if(sel&&sel.rangeCount>0){
+        var node=sel.getRangeAt(0).commonAncestorContainer;
+        while(node&&node.nodeType===3)node=node.parentNode;
+        if(node&&node!==d&&d.contains(node))target=node;
+    }
+    target.style.lineHeight=val;
+    autoChallanSaveRte();
+    var ls=document.getElementById('rteLineSpacing');if(ls)ls.selectedIndex=0;
+}
+
+function updateRteToolbarState(){
+    ['bold','italic','underline','strikethrough'].forEach(function(cmd){
+        var btn=document.getElementById('rteBtn_'+cmd);
+        if(btn){try{var on=document.queryCommandState(cmd);btn.classList.toggle('active',on);}catch(ex){}}
+    });
+    try{
+        var sel2=window.getSelection();
+        if(sel2&&sel2.rangeCount>0){
+            var _node=sel2.getRangeAt(0).startContainer;
+            while(_node&&_node.nodeType===3)_node=_node.parentNode;
+            var _d=getChallanRteDoc();
+            if(_node&&_d&&_d.contains(_node)){
+                var _pxRaw=parseInt(window.getComputedStyle(_node).fontSize);
+                if(_pxRaw){
+                    var szSel=document.getElementById('rteFontSize');
+                    if(szSel){
+                        var _matched=false;
+                        for(var _i=0;_i<szSel.options.length;_i++){if(parseInt(szSel.options[_i].value)===_pxRaw){szSel.selectedIndex=_i;_matched=true;break;}}
+                        if(!_matched)szSel.value=_closestFontSizeOption(_pxRaw);
+                    }
+                }
+            }
+        }
+    }catch(ex){}
+    try{
+        var ff=document.queryCommandValue('fontName');
+        var ffSel=document.getElementById('rteFontFamily');
+        if(ffSel&&ff){
+            ff=ff.replace(/['"]/g,'').split(',')[0].trim();
+            for(var i=0;i<ffSel.options.length;i++){
+                if(ffSel.options[i].value.toLowerCase()===ff.toLowerCase()){ffSel.selectedIndex=i;break;}
+            }
+        }
+    }catch(ex){}
+}
+
+function autoChallanSaveRte(){
+    var d=getChallanRteDoc();if(!d||!currentViewId)return;
+    try{localStorage.setItem('challan_rte_'+currentViewId,d.innerHTML);}catch(e){}
+}
+
+function saveRteContent(){
+    autoChallanSaveRte();
+    showToast('Challan layout saved!','success');
+}
+
+function resetRteContent(){
+    if(!currentViewId)return;
+    try{localStorage.removeItem('challan_rte_'+currentViewId);}catch(e){}
+    var c=challans.find(function(ch){return ch._id===currentViewId;});
+    if(c){
+        var dc=document.getElementById('detailContent');
+        dc.innerHTML=generateChallanHTML(c);
+        renderChallanFontSizeControls();
+        setTimeout(function(){var d=dc.querySelector('.challan-doc');if(d)makeDocEditable(d);},80);
+    }
+    showToast('Reset to default','success');
+}
+
+function loadChallanRteContent(docEl){
+    if(!currentViewId)return false;
+    try{
+        var s=localStorage.getItem('challan_rte_'+currentViewId);
+        if(s){docEl.innerHTML=s;return true;}
+    }catch(e){}
+    return false;
+}
+
+/* ==================== PRINT ==================== */
+function printChallan(){
+    var c=challans.find(function(ch){return ch._id===currentViewId;});
+    if(!c){showToast('No challan to print','error');return;}
+    var pf=challanFontSizes;
+    var bf=challanBoldFields;
+    var ff=challanFontFamily;
+    var its=c.items||[],ds=formatDateDisplay(c.date),tq=formatTotalQty(its);
+    var bgStyle=currentBgImage?'background-image:url('+currentBgImage+');':'';
+
+    var pw=window.open('','_blank');
+    var h='<!DOCTYPE html><html><head><title>Challan '+escapeHtml(c.challanNo||'')+'</title><style>';
+    h+='@page{size:A4;margin:0;}';
+    h+='*{margin:0;padding:0;box-sizing:border-box;}';
+    h+='body{font-family:"'+ff+'",sans-serif;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}';
+    h+='.challan-doc{width:210mm;min-height:297mm;padding:5mm 10mm;line-height:1.3;background:#fff;display:flex;flex-direction:column;}';
+    h+='.challan-header{margin-bottom:3mm;flex-shrink:0;}';
+    h+='.challan-header .company-name{text-align:left;font-size:'+pf.companyName+'px;font-weight:'+fw(bf.companyName)+';letter-spacing:1px;}';
+    h+='.challan-header .company-sub{text-align:left;font-size:8.5px;font-weight:600;margin:2px 0 0;color:#333;}';
+    h+='.challan-header .company-addr{text-align:left;font-size:'+pf.companyAddr+'px;font-weight:'+fw(bf.companyAddr)+';color:#444;margin:1px 0 0;}';
+    h+='.challan-header .header-line{border:none;border-top:2px solid #000;margin:4px 0 0;}';
+    h+='.challan-ruler{border:1px solid #555;padding:5mm 7mm;background-color:#fff;background-size:92% auto;background-position:center;background-repeat:no-repeat;flex:1;display:flex;flex-direction:column;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;}';
+    h+='.challan-ruler .challan-body{flex:0 1 auto;}';
+    h+='.challan-ruler .signature-section{margin-top:auto;padding-top:8px;}';
+    h+='.challan-ruler .title-section{text-align:center;margin:8px 0 30px;}';
+    h+='.challan-ruler .title-text{font-size:'+pf.challanTitle+'px;font-weight:'+fw(bf.challanTitle)+';letter-spacing:3px;text-transform:uppercase;display:inline-block;padding:2px 16px;border-top:1.5px solid #000;border-bottom:1.5px solid #000;}';
+    h+='.challan-ruler .info-row{display:flex;justify-content:space-between;font-size:'+pf.infoRow+'px;font-weight:'+fw(bf.infoRow)+';margin-bottom:20px;}';
+    h+='.challan-ruler .to-section{margin-bottom:40px;font-size:'+pf.infoRow+'px;}';
+    h+='.challan-ruler .to-label{font-weight:'+fw(bf.infoRow)+';margin-bottom:2px;font-size:'+pf.infoRow+'px;}';
+    h+='.challan-ruler .to-name{font-weight:'+fw(bf.toName)+';font-size:'+pf.toName+'px;}';
+    h+='.challan-ruler .to-org{font-size:'+pf.toOrg+'px;font-weight:'+fw(bf.toOrg)+';}';
+    h+='.challan-ruler .to-mobile{font-size:'+pf.companyAddr+'px;font-weight:'+fw(bf.companyAddr)+';color:#555;}';
+    h+='.challan-ruler table{width:100%;border-collapse:collapse;font-size:'+pf.tableBody+'px;margin-bottom:20px;}';
+    h+='.challan-ruler table thead th{background:transparent;color:#000;padding:4px 5px;text-align:center;font-weight:'+fw(bf.tableHeader)+';font-size:'+pf.tableHeader+'px;border:1px solid #000;}';
+    h+='.challan-ruler table thead th:nth-child(2),.challan-ruler table thead th:nth-child(3),.challan-ruler table thead th:nth-child(4),.challan-ruler table thead th:nth-child(5){text-align:left;}';
+    h+='.challan-ruler table tbody td{padding:3px 5px;border:1px solid #000;font-size:'+pf.tableBody+'px;font-weight:'+fw(bf.tableBody)+';}';
+    h+='.challan-ruler table tbody td:first-child{text-align:center;}';
+    h+='.challan-ruler table tbody td:nth-child(6){text-align:center;}';
+    h+='.challan-ruler table tfoot td{padding:4px 5px;border:none;font-weight:'+fw(bf.tableBody)+';font-size:'+pf.tableBody+'px;background:transparent;}';
+    h+='.challan-ruler table tfoot .total-label{text-align:right;border:none;}';
+    h+='.challan-ruler table tfoot .total-value{text-align:center;border:1px solid #000;}';
+    h+='.challan-ruler .signature-section{display:flex;justify-content:space-between;font-size:'+pf.signLabel+'px;}';
+    h+='.challan-ruler .signature-box{text-align:center;min-width:130px;}';
+    h+='.challan-ruler .signature-line{border-top:1px solid #000;padding-top:3px;font-weight:'+fw(bf.signLabel)+';font-size:'+pf.signLabel+'px;}';
+    h+='</style></head><body>';
+
+    h+='<div class="challan-doc">';
+    h+='<div class="challan-header">';
+    h+='<p class="company-name">'+escapeHtml(companyName)+'</p>';
+    h+='<p class="company-sub">Bangladesh Liaison Office:</p>';
+    h+='<p class="company-addr">'+escapeHtml(companyAddress)+'</p>';
+    h+='<hr class="header-line">';
+    h+='</div>';
+    h+='<div class="challan-ruler" style="'+bgStyle+'">';
+    h+='<div class="challan-body">';
+    h+='<div class="title-section"><span class="title-text">DELIVERY CHALLAN</span></div>';
+    h+='<div class="info-row"><span>Challan No: '+escapeHtml(c.challanNo||'N/A')+'</span><span>Date: '+ds+'</span></div>';
+    h+='<div class="to-section">';
+    h+='<div class="to-label">TO,</div>';
+    h+='<div class="to-name">'+escapeHtml(c.attentionPerson||'-')+'</div>';
+    h+='<div class="to-org">'+escapeHtml(c.organization||'-')+'</div>';
+    if(c.mobile)h+='<div class="to-mobile">Mobile: +880 '+escapeHtml(c.mobile)+'</div>';
+    h+='</div>';
+    h+='<table><thead><tr><th style="width:42px">S/L No.</th><th>Item</th><th>Style</th><th>Sample Type</th><th>Color</th><th style="width:55px">QTY</th></tr></thead><tbody>';
+    its.forEach(function(it,i){
+        var qtyText = (it.qty||'') + ' ' + getPluralUnit(it.qty, it.unit);
+        h+='<tr><td style="text-align:center;border:1px solid #000;">'+String(i+1).padStart(2,'0')+'</td>';
+        h+='<td style="border:1px solid #000;">'+escapeHtml(it.item||'-')+'</td>';
+        h+='<td style="border:1px solid #000;">'+escapeHtml(it.style||'-')+'</td>';
+        h+='<td style="border:1px solid #000;">'+escapeHtml(it.sampleType||'-')+'</td>';
+        h+='<td style="border:1px solid #000;">'+escapeHtml(it.color||'-')+'</td>';
+        h+='<td style="text-align:center;border:1px solid #000;">'+escapeHtml(qtyText)+'</td></tr>';
+    });
+    h+='</tbody><tfoot><tr><td colspan="5" class="total-label">TOTAL</td><td class="total-value">'+tq+'</td></tr></tfoot></table>';
+    h+='</div>';
+    h+='<div class="signature-section"><div class="signature-box"><div class="signature-line">Received By</div></div><div class="signature-box"><div class="signature-line">Authorized Signature</div></div></div>';
+    h+='</div></div>';
+
+    h+='<script>setTimeout(function(){window.print();},300);<\/script>';
+    h+='</body></html>';
+
+    pw.document.write(h);
+    pw.document.close();
+}
+
+
+/* ===== Challan Font Size Controls ===== */
+var CHALLAN_FS_FIELDS=[
+    {key:'companyName',label:'Company Name'},
+    {key:'companyAddr',label:'Company Address'},
+    {key:'challanTitle',label:'Challan Title'},
+    {key:'infoRow',label:'Challan No / Date'},
+    {key:'toName',label:'Attention Person'},
+    {key:'toOrg',label:'Organization'},
+    {key:'tableHeader',label:'Table Header'},
+    {key:'tableBody',label:'Table Body'},
+    {key:'signLabel',label:'Signature Labels'}
+];
+function renderChallanFontSizeControls(){
+    var c=document.getElementById('challanFontSizeControls');if(!c)return;
+    c.innerHTML='';
+    var ffSel=document.getElementById('challanFontFamilySelect');
+    if(ffSel)ffSel.value=challanFontFamily;
+    CHALLAN_FS_FIELDS.forEach(function(f){
+        var val=challanFontSizes[f.key]||DEFAULT_CHALLAN_FONT_SIZES[f.key];
+        var isBold=challanBoldFields[f.key];
+        var d=document.createElement('div');
+        d.innerHTML='<p class="text-[10px] text-gray-500 font-semibold mb-1">'+f.label+'</p>'
+            +'<div class="flex items-center gap-1">'
+            +'<button onclick="changeChallanFontSize(\''+f.key+'\',-0.5)" class="w-6 h-6 bg-white border rounded text-sm font-bold hover:bg-gray-100 shrink-0 flex items-center justify-center">−</button>'
+            +'<input type="number" id="cfs_'+f.key+'" value="'+val+'" min="4" max="32" step="0.5" class="flex-1 text-center border rounded text-xs py-0.5 w-0" onchange="setChallanFontSizeDirect(\''+f.key+'\',this.value)">'
+            +'<button onclick="changeChallanFontSize(\''+f.key+'\',0.5)" class="w-6 h-6 bg-white border rounded text-sm font-bold hover:bg-gray-100 shrink-0 flex items-center justify-center">+</button>'
+            +'<button id="cfb_'+f.key+'" onclick="toggleChallanBold(\''+f.key+'\')" title="Toggle Bold" class="w-6 h-6 border rounded text-xs font-bold shrink-0 flex items-center justify-center hover:opacity-90 transition '+(isBold?'bg-brand text-white border-brand':'bg-white text-gray-500 border-gray-300')+'">B</button>'
+            +'</div>';
+        c.appendChild(d);
+    });
+}
+function changeChallanFontSize(field,delta){
+    var v=Math.max(4,Math.min(32,Math.round(((challanFontSizes[field]||DEFAULT_CHALLAN_FONT_SIZES[field])+delta)*2)/2));
+    challanFontSizes[field]=v;
+    var el=document.getElementById('cfs_'+field);if(el)el.value=v;
+    saveData('challanFontSizes',challanFontSizes);
+    refreshChallanView();
+}
+function setChallanFontSizeDirect(field,val){
+    var v=Math.max(4,Math.min(32,parseFloat(val)||DEFAULT_CHALLAN_FONT_SIZES[field]));
+    challanFontSizes[field]=v;
+    var el=document.getElementById('cfs_'+field);if(el)el.value=v;
+    saveData('challanFontSizes',challanFontSizes);
+    refreshChallanView();
+}
+function setChallanFontFamily(font){
+    challanFontFamily=font;
+    saveData('challanFontFamily',challanFontFamily);
+    refreshChallanView();
+}
+function toggleChallanBold(field){
+    challanBoldFields[field]=!challanBoldFields[field];
+    saveData('challanBoldFields',challanBoldFields);
+    var btn=document.getElementById('cfb_'+field);
+    if(btn){btn.classList.toggle('bg-brand',challanBoldFields[field]);btn.classList.toggle('text-white',challanBoldFields[field]);btn.classList.toggle('border-brand',challanBoldFields[field]);btn.classList.toggle('bg-white',!challanBoldFields[field]);btn.classList.toggle('text-gray-500',!challanBoldFields[field]);btn.classList.toggle('border-gray-300',!challanBoldFields[field]);}
+    refreshChallanView();
+}
+function resetAllChallanFontSizes(){
+    challanFontSizes=Object.assign({},DEFAULT_CHALLAN_FONT_SIZES);
+    challanBoldFields=Object.assign({},DEFAULT_CHALLAN_BOLD);
+    challanFontFamily=DEFAULT_CHALLAN_FONT_FAMILY;
+    saveData('challanFontSizes',challanFontSizes);
+    saveData('challanBoldFields',challanBoldFields);
+    saveData('challanFontFamily',challanFontFamily);
+    renderChallanFontSizeControls();
+    refreshChallanView();
+    showToast('Font sizes reset!','success');
+}
+
+/* ===== Company Name & Address Functions ===== */
+function updateHeaderDisplay(){
+    var hn=document.getElementById('headerCompanyName');
+    var ha=document.getElementById('headerCompanyAddress');
+    if(hn) hn.textContent=companyName;
+    if(ha) ha.textContent=companyAddress;
+    document.title=companyName+' - Challan System';
+}
+
+function openNameAddressModal(){
+    document.getElementById('naNameInput').value=companyName;
+    document.getElementById('naAddressInput').value=companyAddress;
+    var prevInfo=document.getElementById('naPrevInfo');
+    var restoreBtn=document.getElementById('naRestoreBtn');
+    var hasPrev=!!(prevCompanyName||prevCompanyAddress);
+    if(hasPrev){
+        document.getElementById('naPrevName').textContent='Name: '+(prevCompanyName||'—');
+        document.getElementById('naPrevAddr').textContent='Addr: '+(prevCompanyAddress||'—');
+        prevInfo.classList.remove('hidden');
+    } else {
+        prevInfo.classList.add('hidden');
+    }
+    restoreBtn.disabled=!hasPrev;
+    document.getElementById('nameAddressModal').classList.remove('hidden');
+    document.body.style.overflow='hidden';
+    setTimeout(function(){document.getElementById('naNameInput').focus();},100);
+}
+
+function closeNameAddressModal(){
+    document.getElementById('nameAddressModal').classList.add('hidden');
+    document.body.style.overflow='';
+}
+
+function saveNameAddress(){
+    var newName=document.getElementById('naNameInput').value.trim();
+    var newAddr=document.getElementById('naAddressInput').value.trim();
+    if(!newName){showToast('Company name cannot be empty','error');return;}
+    /* Save previous before overwriting */
+    prevCompanyName=companyName;
+    prevCompanyAddress=companyAddress;
+    companyName=newName;
+    companyAddress=newAddr;
+    /* Persist — prev is session-only (clears on browser close) */
+    try{sessionStorage.setItem('prevCompanyName_ch',prevCompanyName);sessionStorage.setItem('prevCompanyAddress_ch',prevCompanyAddress);}catch(e){}
+    if(isFirebaseConnected){
+        db.ref('companyName').set(companyName);
+        db.ref('companyAddress').set(companyAddress);
+    } else {
+        try{localStorage.setItem('companyName',companyName);localStorage.setItem('companyAddress',companyAddress);}catch(e){}
+    }
+    updateHeaderDisplay();
+    closeNameAddressModal();
+    showToast('Name & Address updated!','success');
+    /* Refresh open challan view if any */
+    if(currentViewId) refreshChallanView();
+}
+
+function restoreNameAddress(){
+    if(!prevCompanyName&&!prevCompanyAddress){showToast('No previous version to restore','error');return;}
+    companyName=prevCompanyName;
+    companyAddress=prevCompanyAddress;
+    prevCompanyName='';
+    prevCompanyAddress='';
+    try{sessionStorage.removeItem('prevCompanyName_ch');sessionStorage.removeItem('prevCompanyAddress_ch');}catch(e){}
+    if(isFirebaseConnected){
+        db.ref('companyName').set(companyName);
+        db.ref('companyAddress').set(companyAddress);
+    } else {
+        try{localStorage.setItem('companyName',companyName);localStorage.setItem('companyAddress',companyAddress);}catch(e){}
+    }
+    updateHeaderDisplay();
+    closeNameAddressModal();
+    showToast('Restored to previous version!','success');
+    if(currentViewId) refreshChallanView();
+}
+
+/* ===== Server Config Functions ===== */
+function cfgToJsString(cfg){
+    var keys=Object.keys(cfg);
+    var lines=['const firebaseConfig = {'];
+    keys.forEach(function(k,i){
+        lines.push('  '+k+': "'+cfg[k]+'"'+(i<keys.length-1?',':''));
+    });
+    lines.push('};');
+    return lines.join('\n');
+}
+
+function openServerModal(){
+    /* Always show the currently active Firebase config (resolved at startup) */
+    document.getElementById('srv_configJson').value = cfgToJsString(firebaseConfig);
+    var hasPrev=!!sessionStorage.getItem('prevServerConfig_ch');
+    document.getElementById('srvPrevInfo').classList.toggle('hidden',!hasPrev);
+    document.getElementById('srvRestoreBtn').disabled=!hasPrev;
+    document.getElementById('serverModal').classList.remove('hidden');
+    document.body.style.overflow='hidden';
+}
+
+function closeServerModal(){
+    document.getElementById('serverModal').classList.add('hidden');
+    document.body.style.overflow='';
+}
+
+function parseServerConfigInput(raw){
+    /* Accept plain JSON or JS-style: const firebaseConfig = { ... }; */
+    var s=raw.trim();
+    /* Strip JS variable declaration wrapper if present */
+    s=s.replace(/^\s*(?:const|var|let)\s+\w+\s*=\s*/,'').replace(/;\s*$/,'').trim();
+    /* Quote unquoted object keys (handles standard JS object literal syntax) */
+    s=s.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g,'$1"$2":');
+    return JSON.parse(s);
+}
+
+function saveServerConfig(){
+    var raw=document.getElementById('srv_configJson').value.trim();
+    var newCfg;
+    try { newCfg=parseServerConfigInput(raw); } catch(e){ showToast('Invalid config — please check the format','error'); return; }
+    if(typeof newCfg!=='object'||Array.isArray(newCfg)){showToast('Config must be an object','error');return;}
+    if(!newCfg.apiKey||!newCfg.databaseURL){showToast('apiKey and databaseURL are required','error');return;}
+    /* Save previous config before overwriting */
+    var currentSaved=localStorage.getItem('serverConfig');
+    sessionStorage.setItem('prevServerConfig_ch', currentSaved||JSON.stringify(DEFAULT_SERVER_CONFIG));
+    localStorage.setItem('serverConfig', JSON.stringify(newCfg));
+    closeServerModal();
+    showToast('Server config saved! Reloading...','success');
+    setTimeout(function(){ window.location.reload(); }, 1200);
+}
+
+function restoreServerConfig(){
+    var prev=sessionStorage.getItem('prevServerConfig_ch');
+    if(!prev){showToast('No previous config to restore','error');return;}
+    localStorage.setItem('serverConfig',prev);
+    sessionStorage.removeItem('prevServerConfig_ch');
+    closeServerModal();
+    showToast('Previous server config restored! Reloading...','success');
+    setTimeout(function(){ window.location.reload(); }, 1200);
+}
+
+/* ===== Admin ===== */
+function checkAdmin(){if(isAdmin){logoutAdmin();}else{document.getElementById('adminModal').classList.remove('hidden');document.getElementById('adminPassInput').value='';document.getElementById('adminError').classList.add('hidden');document.body.style.overflow='hidden';setTimeout(function(){document.getElementById('adminPassInput').focus();},100);}}
+function closeAdminModal(){document.getElementById('adminModal').classList.add('hidden');document.body.style.overflow='';}
+function submitAdminLogin(){var p=document.getElementById('adminPassInput').value;if(p===SUPER_USER_PASSWORD){isAdmin=true;ssoLogin();closeAdminModal();document.getElementById('adminBtn').innerHTML='<i class="fas fa-user-shield mr-2"></i>Logout';toggleAdminUI(true);}else{document.getElementById('adminError').classList.remove('hidden');}}
+function logoutAdmin(){isAdmin=false;ssoLogout();document.getElementById('adminBtn').innerHTML='<i class="fas fa-user-lock mr-2"></i>Admin';toggleAdminUI(false);}
+function toggleAdminUI(admin){
+    ['manageSuggestionsBtn','deleteSelectedBtn','uploadBgBtn','removeBgBtn','nameAddressBtn','serverBtn'].forEach(function(id){var el=document.getElementById(id);if(el)el.classList.toggle('hidden',!admin);});
+    renderTable();
+}
+
+/* ===== Suggestions ===== */
+function openSuggestionManager(){currentSuggestionTab='attentionPersons';renderSuggestionList();document.getElementById('suggestionsModal').classList.remove('hidden');}
+function closeSuggestionManager(){document.getElementById('suggestionsModal').classList.add('hidden');}
+function switchSuggestionTab(tab){currentSuggestionTab=tab;document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('border-brand',b.dataset.tab===tab);b.classList.toggle('text-brand',b.dataset.tab===tab);b.classList.toggle('border-transparent',b.dataset.tab!==tab);b.classList.toggle('text-gray-500',b.dataset.tab!==tab);});renderSuggestionList();}
+function renderSuggestionList(){var list=getMergedSuggestions(currentSuggestionTab);var container=document.getElementById('suggestionsList');container.innerHTML='';if(!list.length){container.innerHTML='<p class="text-gray-400 text-sm text-center py-4">No suggestions yet.</p>';return;}list.forEach(function(item){var div=document.createElement('div');div.className='flex items-center justify-between p-2 border rounded bg-gray-50';div.innerHTML='<span class="text-sm">'+escapeHtml(item)+'</span><button onclick="removeSuggestionItem(\''+escapeHtml(item).replace(/'/g,"\\'")+'\')" class="text-red-400 hover:text-red-600 text-xs"><i class="fas fa-times"></i></button>';container.appendChild(div);});}
+function addNewSuggestion(){var inp=document.getElementById('newSuggestionInput'),val=inp.value.trim();if(!val){showToast('Enter a suggestion','error');return;}addSuggestion(currentSuggestionTab,val);saveData('suggestions',dynamicSuggestions);inp.value='';renderSuggestionList();showToast('Added!','success');}
+function removeSuggestionItem(val){if(dynamicSuggestions[currentSuggestionTab])delete dynamicSuggestions[currentSuggestionTab][val];if(baseSuggestions[currentSuggestionTab])delete baseSuggestions[currentSuggestionTab][val];saveData('suggestions',dynamicSuggestions);renderSuggestionList();}
+function clearAllSuggestions(){dynamicSuggestions[currentSuggestionTab]={};if(baseSuggestions[currentSuggestionTab])baseSuggestions[currentSuggestionTab]={};saveData('suggestions',dynamicSuggestions);renderSuggestionList();showToast('Cleared!','success');}
+
+/* ===== Delete ===== */
+function deleteEntry(id){var c=challans.find(function(ch){return ch._id===id;});if(!isAdmin&&c&&c.deviceId&&c.deviceId!==currentDeviceId){showToast('You can only delete your own challans','error');return;}deleteTargetId=id;isBulkDelete=false;document.getElementById('deleteMessage').textContent='Delete Challan '+((c&&c.challanNo)||'this entry')+'?';document.getElementById('deleteModal').classList.remove('hidden');}
+function closeDeleteModal(){document.getElementById('deleteModal').classList.add('hidden');deleteTargetId=null;}
+function confirmDelete(){if(isBulkDelete){var ids=Array.from(document.querySelectorAll('.row-check:checked')).map(function(cb){return cb.dataset.id;});challans=challans.filter(function(c){return!ids.includes(c._id);});commitAction();showToast(ids.length+' challans deleted','success');}else if(deleteTargetId){challans=challans.filter(function(c){return c._id!==deleteTargetId;});commitAction();showToast('Deleted!','success');}closeDeleteModal();}
+function promptBulkDelete(){var checked=document.querySelectorAll('.row-check:checked');if(!checked.length){showToast('Select challans first','error');return;}isBulkDelete=true;document.getElementById('deleteMessage').textContent='Delete '+checked.length+' selected challan(s)?';document.getElementById('deleteModal').classList.remove('hidden');}
+function toggleSelectAll(cb){document.querySelectorAll('.row-check').forEach(function(c){c.checked=cb.checked;});}
+
+/* ===== Init ===== */
+window.addEventListener('DOMContentLoaded',function(){
+    /* Load persisted font sizes */
+    if(isFirebaseConnected){
+        db.ref('challanFontSizes').once('value',function(s){if(s.val())challanFontSizes=Object.assign({},DEFAULT_CHALLAN_FONT_SIZES,s.val());});
+        db.ref('challanBoldFields').once('value',function(s){if(s.val())challanBoldFields=Object.assign({},DEFAULT_CHALLAN_BOLD,s.val());});
+        db.ref('challanFontFamily').once('value',function(s){if(s.val())challanFontFamily=s.val();});
+        /* Load company name/address from Firebase */
+        db.ref('companyName').once('value',function(s){if(s.val()){companyName=s.val();updateHeaderDisplay();}});
+        db.ref('companyAddress').once('value',function(s){if(s.val()){companyAddress=s.val();updateHeaderDisplay();}});
+        try{var _pn=sessionStorage.getItem('prevCompanyName_ch');if(_pn)prevCompanyName=_pn;var _pa=sessionStorage.getItem('prevCompanyAddress_ch');if(_pa)prevCompanyAddress=_pa;}catch(e){}
+    } else {
+        /* Load from localStorage fallback */
+        try{
+            var cn=localStorage.getItem('companyName');if(cn)companyName=cn;
+            var ca=localStorage.getItem('companyAddress');if(ca)companyAddress=ca;
+            var pn=sessionStorage.getItem('prevCompanyName_ch');if(pn)prevCompanyName=pn;
+            var pa=sessionStorage.getItem('prevCompanyAddress_ch');if(pa)prevCompanyAddress=pa;
+        }catch(e){}
+        updateHeaderDisplay();
+    }
+
+    datePickerInstance=flatpickr('#entryDate',{dateFormat:'Y-m-d',allowInput:true,disableMobile:true,defaultDate:new Date()});
+
+    setupSuggestionInput('entryAttention','attentionPersons');
+    setupSuggestionInput('entryOrganization','organizations');
+    setupSuggestionInput('entryMobile','mobiles');
+    setupSuggestionInput('entryItem','items');
+    setupSuggestionInput('entryStyle','styles');
+    setupSuggestionInput('entrySampleType','sampleTypes');
+    setupSuggestionInput('entryColor','colors');
+
+    document.getElementById('challanForm').addEventListener('submit',handleSubmit);
+    document.getElementById('searchInput').addEventListener('input',renderTable);
+    document.getElementById('monthFilter').addEventListener('change',renderTable);
+
+    renderFormItems();
+
+    if(isFirebaseConnected){
+        db.ref('challans').once('value',function(s){
+            var d=s.val();
+            if(d){challans=Array.isArray(d)?d:Object.values(d);challans=challans.filter(Boolean);}
+            db.ref('suggestions').once('value',function(ss){
+                var sd=ss.val();
+                if(sd){var dd=decodeFromFB(sd);for(var k in dynamicSuggestions){if(dd[k])dynamicSuggestions[k]=dd[k];}}
+                loadBgImage();
+                processAndRender();
+            });
+        });
+    }else{
+        challans=loadData('challans',[]);
+        var ls=loadData('suggestions',null);
+        if(ls){for(var k in dynamicSuggestions){if(ls[k])dynamicSuggestions[k]=ls[k];}}
+        loadBgImage();
+        processAndRender();
+    }
+
+    ssoCheck(function(ok){
+        if(ok){
+            isAdmin=true;
+            document.getElementById('adminBtn').innerHTML='<i class="fas fa-user-shield mr-2"></i>Logout';
+            toggleAdminUI(true);
+        }
+    });
+    /* Show short device ID in header */
+    var _dEl=document.getElementById('deviceIdShort');
+    if(_dEl)_dEl.textContent=currentDeviceId.slice(-8).toUpperCase();
+});
+</script>
+
+<script>
+/* ─── YIK YUE Shared SSO (Firebase-based, works across Google Sites iframes) ─ */
+(function(){
+var _SC={apiKey:"AIzaSyCbe-CBozEbwUMwxyxb8WVcBqXSBeSRHFw",databaseURL:"https://payment-voucher-6aa57-default-rtdb.asia-southeast1.firebasedatabase.app"};
+var _SM=12*3600*1000; /* 12-hour session */
+function _fp(){try{var c=document.createElement('canvas');c.width=160;c.height=30;var x=c.getContext('2d');x.fillStyle='#4af';x.fillRect(0,0,160,30);x.fillStyle='#fff';x.font='bold 13px Arial';x.fillText('yyk-sso',4,21);return c.toDataURL().slice(-60);}catch(e){return'nc';}}
+function _h32(s){var h=2166136261>>>0;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return h.toString(16);}
+// _DID unified — using currentDeviceId
+var _DID=currentDeviceId;
+var _db=null;
+function _gdb(){if(_db)return _db;try{var a=firebase.app('yyk-sso');_db=firebase.database(a);return _db;}catch(e){}try{var a=firebase.initializeApp(_SC,'yyk-sso');_db=firebase.database(a);return _db;}catch(e2){}return null;}
+window.ssoLogin=function(){var _did=currentDeviceId;var d=_gdb();if(d)d.ref('adminSessions/'+_did).set({ts:Date.now(),did:_did});try{localStorage.setItem('yyAdminSession',JSON.stringify({did:_did,ts:Date.now()}));}catch(e){}};
+window.ssoLogout=function(){var d=_gdb();if(d)d.ref('adminSessions/'+currentDeviceId).remove();try{localStorage.removeItem('yyAdminSession');}catch(e){}};
+window.ssoCheck=function(cb){try{var _ls=localStorage.getItem('yyAdminSession');if(_ls){var _lo=JSON.parse(_ls);if(_lo&&_lo.did===currentDeviceId&&_lo.ts&&(Date.now()-_lo.ts)<_SM){cb(true);return;}}}catch(e){}var d=_gdb();if(!d){cb(false);return;}d.ref('adminSessions/'+currentDeviceId).once('value',function(s){var v=s.val();if(v&&v.ts&&(Date.now()-v.ts)<_SM&&(!v.did||v.did===currentDeviceId)){try{localStorage.setItem('yyAdminSession',JSON.stringify({did:currentDeviceId,ts:Date.now()}));}catch(e){}cb(true);}else{if(v)d.ref('adminSessions/'+currentDeviceId).remove();try{localStorage.removeItem('yyAdminSession');}catch(e){}cb(false);}});};
+})();
+</script>
+</body>
+</html>
